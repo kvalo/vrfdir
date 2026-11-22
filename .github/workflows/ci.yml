@@ -44,8 +44,8 @@ jobs:
         run: ./lint
 
   test-python:
-    # Not ubuntu-latest: on 26.04 `sha256sum -c` fails to read the
-    # exported name back\nslash in filenames-newline, see TODO.md.
+    # Not ubuntu-latest: the sha256sum of uutils on 26.04 cannot read
+    # the names which sha256sum escapes, see TODO.md.
     runs-on: ubuntu-24.04
     strategy:
       fail-fast: false
