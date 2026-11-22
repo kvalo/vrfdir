@@ -22,11 +22,12 @@ checksums), the tests use them to check that.
 - Run all tests: `./check` (it refuses to run as root, several tests
   need a file which cannot be read)
 - Run one test: `./check -t <name>` (base name of a script in
-  `tests/specs/` or `tests/specs-linux/`, e.g. `-t status`; `-t` can
-  be repeated)
+  `tests/specs/`, `tests/specs-linux/` or `tests/specs-macos/`, e.g.
+  `-t status`; `-t` can be repeated)
 - Keep temporary data of a failed test: `./check -k`
-- Run only the tests which work on macOS: `./check --portable` (it
-  leaves out `tests/specs-linux/`)
+- Run only the tests which work on every system: `./check --portable`
+  (only `tests/specs/`, without `tests/specs-linux/` or
+  `tests/specs-macos/`)
 - Run the pytest unit tests: `./unit [pytest options]` (needs
   python3-pytest, works as root too as no unit test needs an
   unreadable file)
@@ -65,7 +66,13 @@ of this repository. It is available from
   (same format), as cmdspecs cannot skip a test. That is a test which
   needs a file name which is not valid UTF-8 (APFS refuses it), names
   which differ only in the case or the normalisation form, `/dev/full`
-  or an error text of Linux. `./check --portable` leaves them out.
+  or an error text of Linux. `./check` runs `tests/specs-linux/`
+  only on Linux (`uname -s`), so the BSDs run just `tests/specs/`.
+- `tests/specs-macos/` has the tests of the macOS behaviour (case and
+  normalisation form of names) which cannot run on Linux. `./check`
+  runs it only on macOS (`uname -s` is Darwin), so only CI and the
+  user can run it: say so when you add or change one, the expected
+  output was not seen on a real macOS.
 - Scripts work in `$DATADIR` (temporary directory), call
   `$SRCDIR/vrfdir` and `$SRCDIR/tests/genbackupdata`, and remove
   `.vrfdir` and their data at the end.
@@ -136,11 +143,9 @@ commands, signals, fault injection and unreadable files.
   on the current system (`is_native_name()`) is kept in
   `VrfdirRepo.foreign` and written back as it is, never dropped.
 - vrfdir has to work on Linux, the BSDs, macOS and Windows. CI runs
-  the tests on Linux and macOS (`./check --portable` and `./unit`
-  there), but nothing runs on Windows or the BSDs, and nothing checks
-  the macOS code which `tests/specs-linux/` would reach
-  (`CASE_INSENSITIVE`). Say so when you change code which is only for
-  one system, the user has to try it by hand.
+  the tests on Linux and macOS (`./check` and `./unit`), but nothing
+  runs on Windows or the BSDs. Say so when you change code which is
+  only for one system, the user has to try it by hand.
 - The tests are run in a UTF-8 locale.
 
 ## Help texts

@@ -147,13 +147,14 @@ needs nothing extra, the test data is created with the
     ./check                  # run all tests
     ./check -t status        # run one test, tests/specs/status.script
     ./check -k               # keep the temporary data of a failed test
-    ./check --portable       # only the tests which work on macOS
+    ./check --portable       # only the tests for every system
     ./coverage               # run all tests, show the lines not run
     ./lint                   # flake8, shellcheck, mdl and yamllint
     ./tests/benchmark        # simple_benchmark, see --help
 
 The tests are black-box: each `tests/specs/<name>.script` (and
-`tests/specs-linux/`, the ones which cannot run on macOS) is run and
+`tests/specs-linux/` and `tests/specs-macos/`, the ones which run only
+on Linux or macOS) is run and
 its output and exit code are compared with the expected files next to
 it. See `./tests/benchmark --help` for the options of the benchmark.
 

@@ -11,9 +11,10 @@ if [ "$(id -u)" = 0 ]; then
     exit 1
 fi
 
-# tests/specs-linux needs names which are not valid UTF-8, names which
-# differ only in the case, /dev/full and the error texts of Linux.
-# macOS cannot do that, CI runs only tests/specs there.
+# tests/specs-linux needs /dev/full, the error texts of Linux and names
+# which are not valid UTF-8, and tests/specs-macos the behaviour of
+# macOS, so each runs only on its system. The other systems run
+# tests/specs. --portable runs only that on every system.
 portable=
 n=$#
 while [ "$n" -gt 0 ]; do
@@ -29,7 +30,11 @@ done
 
 set -- "$@" tests/specs
 if [ -z "$portable" ]; then
-    set -- "$@" tests/specs-linux
+    case "$(uname -s)" in
+        Linux) set -- "$@" tests/specs-linux ;;
+        Darwin) set -- "$@" tests/specs-macos ;;
+        *) ;;
+    esac
 fi
 
 cmdspecs "$@"

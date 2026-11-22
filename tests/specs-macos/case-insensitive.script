@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that on a case-insensitive filesystem a name typed in another
+# case is the name on the disk and the file has only one name in the
+# repository, and that .VRFDIR is the directory of vrfdir. The names
+# a and A are the same file here, see tests/specs-linux/case-names.
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+# the second one writes to the same file, the name stays the first one
+echo aaaa > a
+echo AAAA > A
+mkdir Dir
+echo aaaa > Dir/File
+
+echo add A
+"$SRCDIR/vrfdir" add --quiet A
+echo "exit value: $?"
+
+echo add a again
+"$SRCDIR/vrfdir" add --quiet a
+echo "exit value: $?"
+
+echo add the file in the directory with the wrong case
+"$SRCDIR/vrfdir" add --quiet dir/file
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo add .VRFDIR
+"$SRCDIR/vrfdir" add --quiet .VRFDIR
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a Dir

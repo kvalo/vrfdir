@@ -1,0 +1,40 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that on macOS a name typed in the other Unicode normalisation
+# form is the same file, and that the file has only one name in the
+# repository, the one on the disk. See tests/specs-linux/case-names
+# for Linux, where they are different files.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+# the same character as one code point and as two
+nfc=$(printf '\xc3\xa4')
+nfd=$(printf 'a\xcc\x88')
+echo nfc > "$nfc"
+
+echo add with the other form
+"$SRCDIR/vrfdir" add --quiet "$nfd"
+echo "exit value: $?"
+
+echo add with the form of the disk
+"$SRCDIR/vrfdir" add --quiet "$nfc"
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir "$nfc"
