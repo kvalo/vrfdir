@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# Run linters. Requires flake8, shellcheck and mdl (markdownlint).
+# Run linters. Requires flake8, shellcheck and mdl (markdownlint),
+# yamllint is optional.
 
 set -eu
 
@@ -10,6 +11,13 @@ flake8 vrfdir tests/genbackupdata tests/benchmark tests/sigint-at tests/inject-a
     tests/unit/*.py
 
 shellcheck check coverage lint unit tests/specs/*.script
+
+# yamllint is optional.
+if command -v yamllint >/dev/null; then
+    yamllint .github/workflows/*.yml
+else
+    echo "lint: yamllint not found, skipping workflow check"
+fi
 
 mdl README.md TODO.md CLAUDE.md CHANGELOG.md
 
