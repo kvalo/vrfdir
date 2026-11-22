@@ -1,0 +1,13 @@
+# Copyright 2026  Kalle Valo
+#
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+extends: default
+
+rules:
+  # GitHub workflows use a bare "on:" key and no "---" marker.
+  document-start: disable
+  truthy:
+    check-keys: false
+  line-length:
+    max: 100

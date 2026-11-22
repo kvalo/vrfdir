@@ -1,0 +1,64 @@
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+name: CI
+
+on:
+  push:
+  pull_request:
+  # Catch breakage from new Python releases and runner image updates
+  # even when the repository is quiet.
+  schedule:
+    - cron: "43 5 12 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # cmdspecs is not in apt or on PyPI, install it from this tag.
+  CMDSPECS: git+https://github.com/kvalo/cmdspecs@v0.34.0
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y flake8 python3-pytest \
+            shellcheck markdownlint yamllint
+      - name: Install cmdspecs
+        # The system Python is externally managed, so use a venv. It
+        # sees the apt packages (pytest for ./unit).
+        run: |
+          python3 -m venv --system-site-packages "$RUNNER_TEMP/venv"
+          "$RUNNER_TEMP/venv/bin/pip" install "$CMDSPECS"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
+      - name: Run tests
+        run: ./check
+      - name: Run unit tests
+        run: ./unit
+      - name: Run linters
+        run: ./lint
+
+  test-python:
+    # Not ubuntu-latest: on 26.04 `sha256sum -c` fails to read the
+    # exported name back\nslash in filenames-newline, see TODO.md.
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12", "3.13", "3.14", "3.15"]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install cmdspecs and pytest
+        run: pip install "$CMDSPECS" pytest
+      - name: Run tests
+        run: ./check
+      - name: Run unit tests
+        run: ./unit

@@ -5,6 +5,15 @@ SPDX-FileCopyrightText: 2026 Kalle Valo
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
+## sha256sum -c on Ubuntu 26.04
+
+In `filenames-newline` the exported name `back\nslash` (a backslash
+and an n, no leading backslash on the line) is read back by
+`sha256sum -c` of Ubuntu 26.04 as a name with a newline, so the test
+fails there. It passes on 24.04, which is why the CI runs on that. Find
+out if it is a change in coreutils or a bug in the export format, and
+then make the CI use `ubuntu-latest` again.
+
 ## lock the repository
 
 Nothing prevents two vrfdir processes from changing the same

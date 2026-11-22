@@ -134,6 +134,7 @@ Everything in [Requirements](#requirements) above, and in addition:
 | `flake8`              | `./lint`                                   |
 | `shellcheck`          | `./lint`                                   |
 | `mdl` (markdownlint)  | `./lint`                                   |
+| `yamllint`            | `./lint`, optional, checks the GitHub workflow |
 | `python3-pytest`      | `./unit`, the unit tests                   |
 | `python3-coverage`    | `./coverage`                               |
 
@@ -147,7 +148,7 @@ needs nothing extra, the test data is created with the
     ./check -t status        # run one test, tests/specs/status.script
     ./check -k               # keep the temporary data of a failed test
     ./coverage               # run all tests, show the lines not run
-    ./lint                   # flake8, shellcheck and mdl
+    ./lint                   # flake8, shellcheck, mdl and yamllint
     ./tests/benchmark        # simple_benchmark, see --help
 
 The tests are black-box: each `tests/specs/<name>.script` is run and

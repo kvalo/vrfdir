@@ -34,8 +34,13 @@ checksums), the tests use them to check that.
   `./tests/benchmark [-p] [-k] [-s SIZE] [-d DIR] [TEST]` (long forms
   `--profile`, `--keep-datadir`, `--data-total-size`, `--directory`)
   where TEST is `simple_benchmark` (the default) or `benchmark_status`
-- Lint: `./lint` runs flake8 (config in `.flake8`), shellcheck and mdl
-  (markdownlint, config in `.mdlrc` and `.mdl_style.rb`)
+- Lint: `./lint` runs flake8 (config in `.flake8`), shellcheck, mdl
+  (markdownlint, config in `.mdlrc` and `.mdl_style.rb`) and, if it
+  is installed, yamllint (config in `.yamllint`) on the GitHub
+  workflow
+- CI: `.github/workflows/ci.yml` runs `./check`, `./unit` and `./lint`
+  on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15. It
+  installs `cmdspecs` from a pinned tag, bump the tag when needed
 
 There is no build step. The scripts have no file extensions to glob on,
 so when you add a new Python or shell script, or a markdown file, add
@@ -205,8 +210,8 @@ like `v0.1.0`.
 2. Test that exact commit on Windows and macOS by hand, as nothing
    checks the code for them (see Constraints). If the commit changes
    afterwards, e.g. by amending, the tag must point at the new hash.
-   Once there is CI, push the commit to `staging` (ask first) and
-   wait for it with `gh run watch` as well.
+   Also push the commit to `staging` (ask first) and wait for CI
+   with `gh run watch`.
 3. The user signs and tags the exact commit which was tested, e.g.
    `git tag -s vX.Y.Z <hash> -m "vrfdir vX.Y.Z"`, and pushes the
    commit and the tag to `main`. Never push to `main` or create the
