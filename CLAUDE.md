@@ -110,7 +110,9 @@ commands, signals, fault injection and unreadable files.
   files. Version 1 has the MD5 checksum in the `md5sum` key, version
   2 has `checksum` with the algorithm in front (`sha256:...`, and
   `md5:...` for the files of the older versions until `vrfdir
-  upgrade`). A repository of version 0 has `.vrfdir/hashes.json` (the
+  upgrade`), version 3 adds the top-level `checksum` of the content
+  (`manifest_checksum()`, verified on every read, the older versions
+  have none). A repository of version 0 has `.vrfdir/hashes.json` (the
   old name) which is still read when there is no `manifest.json`.
   Both are converted in memory when loaded and the next write
   converts the file: `manifest.json` is written, then the old file is

@@ -22,7 +22,8 @@ sha256sum -c accepts the exported names
 \x\nM fake: OK
 
 vrfdir info
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:405161515dbf307f86a48f28f4ccd509581ebce5bf93e662ec66c5446c6ace8b
 Files:        5
 Total size:   25 B
 Checksums:    5 sha256, 0 md5

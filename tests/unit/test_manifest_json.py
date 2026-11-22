@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import hashlib
 import json
 import os
 import random
@@ -27,9 +28,12 @@ LEGACY_GOLDEN = (
 # algorithm. It has to stay readable too.
 V1_GOLDEN = LEGACY_GOLDEN.replace('"version": 0', '"version": 1')
 
-# What the two are written as now, with the algorithm of the checksum.
+# What the two are written as now, with the algorithm of the checksum
+# and the checksum of the content.
 CONVERTED = (
-    '[{"version": 2, "files": {'
+    '[{"version": 3, "checksum": "sha256:'
+    'e4423bfca138e07b871c996b512beacc36d4db2769e105cb92858a61e58ac019", '
+    '"files": {'
     '"empty": {"checksum": "md5:d41d8cd98f00b204e9800998ecf8427e", '
     '"size": 0}, '
     '"dir/a": {"checksum": "md5:0cc175b9c0f1b6a831c399e269772661", '
@@ -37,17 +41,54 @@ CONVERTED = (
     '"caf\\u00e9": {"checksum": "md5:0cc175b9c0f1b6a831c399e269772661", '
     '"size": 1}}}]\n')
 
-# A manifest.json written now.
-GOLDEN = (
+# A manifest.json of version 2, which has the algorithm in front of the
+# checksums but no checksum of its own content.
+V2_GOLDEN = (
     '[{"version": 2, "files": {'
     '"empty": {"checksum": "sha256:%s", "size": 0}, '
     '"dir/a": {"checksum": "sha256:%s", "size": 1}, '
     '"caf\\u00e9": {"checksum": "sha256:%s", "size": 1}}}]\n' %
     (SHA256_EMPTY, SHA256_A, SHA256_A))
 
+# A manifest.json written now.
+GOLDEN_CHECKSUM = \
+    'sha256:198be353462b040b6a42123081d07b0100eca09be7ea0ac5886570de961d33a0'
+GOLDEN = V2_GOLDEN.replace(
+    '"version": 2,', '"version": 3, "checksum": "%s",' % GOLDEN_CHECKSUM)
 
-def make_json(files, version=2):
-    return json.dumps([{'version': version, 'files': files}])
+# The checksum of a manifest with no files.
+EMPTY_CHECKSUM = \
+    'sha256:05b7184ec4debc87f91316a7a72cb1708e67bc7c1487857ea4ec8d18bad308a7'
+
+# A checksum of the right form, for the tests of broken entries whose
+# checksum cannot be calculated.
+ANY_CHECKSUM = 'sha256:' + SHA256_A
+
+
+# The checksum of the content of manifest.json, calculated here
+# separately from vrfdir so that a change of the form is noticed.
+def checksum_of(files, version=3):
+    h = hashlib.sha256(b'vrfdir manifest %d\n' % version)
+
+    for key in sorted(files, key=lambda k: k.encode('utf-8',
+                                                    'surrogateescape')):
+        h.update(key.encode('utf-8', 'surrogateescape') + b'\0' +
+                 files[key]['checksum'].encode('ascii') + b'\0' +
+                 b'%d\0' % files[key]['size'])
+
+    return 'sha256:' + h.hexdigest()
+
+
+# Version 3 and later have the checksum of the files, the older ones not.
+def make_json(files, version=3, checksum=None):
+    a = {'version': version}
+
+    if version >= 3:
+        a['checksum'] = checksum or checksum_of(files, version)
+
+    a['files'] = files
+
+    return json.dumps([a])
 
 
 def entry(checksum='sha256:' + SHA256_A, size=1):
@@ -64,19 +105,25 @@ def test_empty_repo(vrfdir):
     assert repo.version == vrfdir.MANIFEST_VERSION
     assert repo.files == {}
     assert repo.foreign == {}
-    assert repo.get_stats() == {'Files': 0, 'Size': 0, 'FileVersion': 2,
+    assert repo.get_stats() == {'Files': 0, 'Size': 0, 'FileVersion': 3,
                                 'Foreign': 0}
     assert repo.get_details() == {'Md5': 0, 'Largest': []}
+    assert repo.checksum is None
 
 
 def test_dump_empty_repo(vrfdir):
-    assert vrfdir.VrfdirRepo().dump_json() == \
-        '[{"version": 2, "files": {}}]\n'
+    repo = vrfdir.VrfdirRepo()
+
+    assert repo.dump_json() == \
+        '[{"version": 3, "checksum": "%s", "files": {}}]\n' % EMPTY_CHECKSUM
+    assert repo.checksum == EMPTY_CHECKSUM
 
 
 def test_manifest_version(vrfdir):
     # a change needs a version bump and a migration, see CLAUDE.md
-    assert vrfdir.MANIFEST_VERSION == 2
+    assert vrfdir.MANIFEST_VERSION == 3
+    assert vrfdir.CHECKSUMMED_MANIFEST_VERSION == 3
+    assert vrfdir.ALGORITHM_MANIFEST_VERSION == 2
     assert vrfdir.MD5_MANIFEST_VERSION == 1
     assert vrfdir.LEGACY_VERSION == 0
 
@@ -90,7 +137,8 @@ def test_golden_file_loads(vrfdir):
         'café': entry(),
     }
     assert repo.foreign == {}
-    assert repo.get_stats() == {'Files': 3, 'Size': 2, 'FileVersion': 2,
+    assert repo.checksum == GOLDEN_CHECKSUM
+    assert repo.get_stats() == {'Files': 3, 'Size': 2, 'FileVersion': 3,
                                 'Foreign': 0}
     assert repo.get_details() == {'Md5': 0,
                                   'Largest': [(1, 'café'), (1, 'dir/a'),
@@ -99,6 +147,136 @@ def test_golden_file_loads(vrfdir):
 
 def test_golden_file_is_written_as_it_was(vrfdir):
     assert load(vrfdir, GOLDEN).dump_json() == GOLDEN
+
+
+def test_checksum_of_the_golden_file(vrfdir):
+    files = json.loads(GOLDEN)[0]['files']
+
+    assert vrfdir.manifest_checksum(3, files) == GOLDEN_CHECKSUM
+    assert checksum_of(files) == GOLDEN_CHECKSUM
+
+
+def test_version_2_golden_file_loads_without_checksum(vrfdir):
+    repo = load(vrfdir, V2_GOLDEN)
+
+    assert repo.version == 2
+    assert repo.checksum is None
+    assert repo.files == load(vrfdir, GOLDEN).files
+
+    # the conversion happens in write()
+    repo.version = vrfdir.MANIFEST_VERSION
+    assert repo.dump_json() == GOLDEN
+    assert repo.checksum == GOLDEN_CHECKSUM
+
+
+GOLDEN_SIZE_A = '"dir/a": {"checksum": "sha256:%s", "size": 1}' % SHA256_A
+
+
+# A flipped bit or another change in the content which still is a valid
+# manifest.json.
+@pytest.mark.parametrize('old, new', [
+    # a digit of the checksum of a file
+    (SHA256_EMPTY, SHA256_EMPTY[:-1] + '4'),
+    # the size of a file
+    (GOLDEN_SIZE_A, GOLDEN_SIZE_A.replace('"size": 1', '"size": 3')),
+    # a letter of the name
+    ('"dir/a"', '"dir/c"'),
+    # the name of an entry is the same as of the other one, so only the
+    # last of them is read
+    ('"dir/a"', '"empty"'),
+    # an entry is removed
+    (GOLDEN_SIZE_A + ', ', ''),
+    # an entry is added
+    ('"files": {', '"files": {"new": {"checksum": "sha256:%s", '
+     '"size": 0}, ' % SHA256_EMPTY),
+    # the checksum of the manifest itself
+    (GOLDEN_CHECKSUM, GOLDEN_CHECKSUM[:-1] + '1'),
+])
+def test_checksum_mismatch(vrfdir, old, new):
+    buf = GOLDEN.replace(old, new, 1)
+    assert buf != GOLDEN
+
+    with pytest.raises(vrfdir.VrfdirError) as e:
+        load(vrfdir, buf)
+
+    assert str(e.value) == (
+        'the repository .vrfdir/manifest.json is damaged: its content '
+        'does not match its checksum. The checksums of the files cannot be '
+        'trusted, restore .vrfdir/manifest.json from a backup')
+
+
+@pytest.mark.parametrize('checksum, reason', [
+    (None, 'the checksum of the repository is missing'),
+    (1, 'invalid checksum of the repository'),
+    ('', 'invalid checksum of the repository'),
+    (GOLDEN_CHECKSUM.upper(), 'invalid checksum of the repository'),
+    (GOLDEN_CHECKSUM[7:], 'invalid checksum of the repository'),
+    ('md5:' + MD5_A, 'invalid checksum of the repository'),
+    (GOLDEN_CHECKSUM + '\n', 'invalid checksum of the repository'),
+])
+def test_invalid_checksum_of_the_manifest(vrfdir, checksum, reason):
+    j = json.loads(GOLDEN)
+    if checksum is None:
+        del j[0]['checksum']
+    else:
+        j[0]['checksum'] = checksum
+
+    with pytest.raises(vrfdir.VrfdirError) as e:
+        load(vrfdir, json.dumps(j))
+
+    assert str(e.value) == \
+        'the repository .vrfdir/manifest.json is damaged: %s' % reason
+
+
+# An older version never had the checksum, so the version has changed.
+@pytest.mark.parametrize('version', [1, 2])
+def test_checksum_in_an_older_version(vrfdir, version):
+    buf = GOLDEN.replace('"version": 3', '"version": %d' % version)
+
+    with pytest.raises(vrfdir.VrfdirError) as e:
+        load(vrfdir, buf)
+
+    assert str(e.value).endswith('is damaged: invalid version %d' % version)
+
+
+def test_checksum_does_not_depend_on_the_formatting(vrfdir):
+    j = json.loads(GOLDEN)
+    j[0]['files'] = dict(reversed(list(j[0]['files'].items())))
+
+    repo = load(vrfdir, json.dumps(j, indent=4, ensure_ascii=False))
+
+    assert repo.files == load(vrfdir, GOLDEN).files
+
+
+def test_checksum_covers_the_foreign_entries(vrfdir):
+    repo = vrfdir.VrfdirRepo()
+    repo.files['a'] = entry()
+    repo.foreign['x\udcffy'] = entry()
+
+    j = json.loads(repo.dump_json())
+    assert j[0]['checksum'] == checksum_of({'a': entry(),
+                                            'x\udcffy': entry()})
+
+    j[0]['files']['x\udcffy']['size'] = 2
+    with pytest.raises(vrfdir.VrfdirError) as e:
+        load(vrfdir, json.dumps(j))
+
+    assert 'does not match its checksum' in str(e.value)
+
+
+# A NUL separates the fields, so moving a character from the name to the
+# next field or from an entry to the next one changes the checksum.
+def test_checksum_of_similar_content_differs(vrfdir):
+    similar = [{'a\nb': entry(size=1)},
+               {'a\nb': entry(size=11)},
+               {'a': entry(size=1), 'b': entry(size=1)},
+               {'a': entry(size=11)},
+               {'a': entry(size=1), 'a/b': entry(size=1)}]
+
+    checksums = [vrfdir.manifest_checksum(3, f) for f in similar]
+
+    assert len(set(checksums)) == len(similar)
+    assert checksums == [checksum_of(f) for f in similar]
 
 
 def test_dump_is_ascii(vrfdir):
@@ -217,12 +395,12 @@ def test_legacy_damaged_names_the_old_file(vrfdir):
 
 def test_newer_version(vrfdir):
     with pytest.raises(vrfdir.VrfdirError) as e:
-        load(vrfdir, make_json({}, version=3))
+        load(vrfdir, make_json({}, version=4))
 
     # not damaged, it is the file of a newer vrfdir
     assert 'damaged' not in str(e.value)
-    assert 'has format version 3' in str(e.value)
-    assert 'knows only version 2' in str(e.value)
+    assert 'has format version 4' in str(e.value)
+    assert 'knows only version 3' in str(e.value)
 
 
 @pytest.mark.parametrize('key', ['', 'a\0b', '\0'])
@@ -251,8 +429,9 @@ def test_invalid_name(vrfdir, key):
     {'md5sum': MD5_A, 'size': 1},
 ])
 def test_invalid_entry(vrfdir, value):
+    # the entries are checked before the checksum
     with pytest.raises(vrfdir.VrfdirError) as e:
-        load(vrfdir, make_json({'file': value}))
+        load(vrfdir, make_json({'file': value}, checksum=ANY_CHECKSUM))
 
     assert str(e.value).endswith('is damaged: invalid checksum or size '
                                  'of file')
@@ -300,7 +479,7 @@ def test_invalid_checksum_of_version_1(vrfdir):
 
 def test_invalid_entry_message_shows_the_name_safely(vrfdir):
     with pytest.raises(vrfdir.VrfdirError) as e:
-        load(vrfdir, make_json({'a\udcffb': {}}))
+        load(vrfdir, make_json({'a\udcffb': {}}, checksum=ANY_CHECKSUM))
 
     assert str(e.value).endswith('of a\\xffb')
 
@@ -339,7 +518,7 @@ def test_stats(vrfdir):
                                    'b': entry(size=5),
                                    'c': entry('md5:' + MD5_EMPTY, 0)}))
 
-    assert repo.get_stats() == {'Files': 3, 'Size': 15, 'FileVersion': 2,
+    assert repo.get_stats() == {'Files': 3, 'Size': 15, 'FileVersion': 3,
                                 'Foreign': 0}
     assert repo.get_details() == {
         'Md5': 1, 'Largest': [(10, 'a'), (5, 'b'), (0, 'c')]}
@@ -352,7 +531,7 @@ def test_stats_count_the_foreign_entries(vrfdir):
 
     repo.update_stats()
 
-    assert repo.get_stats() == {'Files': 2, 'Size': 15, 'FileVersion': 2,
+    assert repo.get_stats() == {'Files': 2, 'Size': 15, 'FileVersion': 3,
                                 'Foreign': 1}
     assert repo.get_details() == {'Md5': 0, 'Largest': [(10, 'a')]}
 

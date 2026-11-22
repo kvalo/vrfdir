@@ -1,5 +1,6 @@
 vrfdir info
 Format:       version 1
+Manifest:     no checksum (run 'vrfdir upgrade')
 Files:        7
 Total size:   30 B
 Checksums:    0 sha256, 7 md5 (run 'vrfdir upgrade')
@@ -40,7 +41,7 @@ reading does not touch the file
 "version": 1
 
 adding converts the file, the old files keep the MD5 checksum
-"version": 2
+"version": 3
 0
 md5:ec1ac12ab85dbcdbf7b3b506314fe9b4  5            KEVM-CM-^DT
 md5:e5828c564f71fea3a12dde8bd5d27063  5            a

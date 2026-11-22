@@ -16,7 +16,8 @@ space:\ foo
 utf-8
 
 vrfdir info
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:17cc6dcb9d514f29137e44c3988881095c7a610380293ff8125b3327d4dfec03
 Files:        5
 Total size:   55 B
 Checksums:    5 sha256, 0 md5

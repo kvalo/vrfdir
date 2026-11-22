@@ -1,5 +1,6 @@
 vrfdir info
 Format:       version 0
+Manifest:     no checksum (run 'vrfdir upgrade')
 Files:        7
 Total size:   30 B
 Checksums:    0 sha256, 7 md5 (run 'vrfdir upgrade')
@@ -40,7 +41,8 @@ reading does not touch the old file
 hashes.json
 
 adding converts the old file and keeps what it has
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:bed9b6d0174f69c27f2cd9442972faeec0a3a813f19f1eb9077b58b9bac18a3b
 Files:        8
 Total size:   35 B
 Checksums:    1 sha256, 7 md5 (run 'vrfdir upgrade')

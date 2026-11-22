@@ -59,7 +59,7 @@ echo '[{"version": 0, "files": {}}]' > .vrfdir/manifest.json
 check_status
 
 echo newer version
-echo '[{"version": 3, "files": {}}]' > .vrfdir/manifest.json
+echo '[{"version": 4, "files": {}}]' > .vrfdir/manifest.json
 check_status
 
 # a surrogate which is not an escaped byte cannot be a file name

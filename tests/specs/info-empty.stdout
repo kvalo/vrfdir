@@ -1,5 +1,6 @@
 vrfdir info, empty repository
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:05b7184ec4debc87f91316a7a72cb1708e67bc7c1487857ea4ec8d18bad308a7
 Files:        0
 Total size:   0 B
 Checksums:    0 sha256, 0 md5
@@ -11,6 +12,7 @@ exit value: 0
 sizes of 12, 13 and 15 digits, the files are not read
 vrfdir info
 Format:       version 2
+Manifest:     no checksum (run 'vrfdir upgrade')
 Files:        3
 Total size:   113.5 TiB
 Checksums:    3 sha256, 0 md5
@@ -32,6 +34,7 @@ vrfdir export
 exit value: 0
 vrfdir info --machine-readable
 version=2
+manifest=
 files=3
 size=124814813691480
 sha256=3

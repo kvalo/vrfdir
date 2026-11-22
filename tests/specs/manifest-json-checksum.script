@@ -1,0 +1,65 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the checksum of the content of manifest.json. A change in the
+# content which is still valid JSON, like a flipped bit, has to be an
+# error about manifest.json and exit value 3, not a corrupted file.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a b
+cp .vrfdir/manifest.json good.json
+
+# damage 'sed expression': change good.json and run status
+damage() {
+    sed "$1" good.json > .vrfdir/manifest.json
+    if cmp -s .vrfdir/manifest.json good.json; then
+        echo The manifest did not change
+    fi
+    "$SRCDIR/vrfdir" status
+    echo "exit value: $?"
+}
+
+echo a digit of the checksum of a file
+damage 's/sha256:11a77c3d/sha256:11a77c3e/'
+echo the size of a file
+damage 's/"size": 5/"size": 7/'
+echo a letter of a name
+damage 's/"a":/"c":/'
+echo the checksum of manifest.json is missing
+damage 's/"checksum": "sha256:[0-9a-f]*", "files"/"files"/'
+echo the version is changed to an older one
+damage 's/"version": 3/"version": 2/'
+
+echo every command stops, check does not blame the file
+damage 's/sha256:11a77c3d/sha256:11a77c3e/'
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+"$SRCDIR/vrfdir" export
+echo "exit value: $?"
+"$SRCDIR/vrfdir" info
+echo "exit value: $?"
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet c
+echo "exit value: $?"
+
+echo add does not overwrite the damaged manifest
+sed 's/sha256:11a77c3d/sha256:11a77c3e/' good.json | cmp - .vrfdir/manifest.json
+echo "exit value: $?"
+
+echo the formatting of the JSON does not matter
+tr ' ' '\n' < good.json > .vrfdir/manifest.json
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a b c good.json

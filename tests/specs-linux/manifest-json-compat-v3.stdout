@@ -1,0 +1,43 @@
+vrfdir info
+Format:       version 3
+Manifest:     sha256:c16dad3c22baca285d812847a307c7f4d47578d4bfb4c61ec6c9b3bc71c66df5
+Files:        7
+Total size:   30 B
+Checksums:    7 sha256, 0 md5
+
+Largest files:
+        5 B  KEVM-CM-^DT
+        5 B  a
+        5 B  back\slash
+        5 B  dir/b
+        5 B  iso8859-1: M-D
+exit value: 0
+
+vrfdir status
+exit value: 0
+
+vrfdir check
+exit value: 0
+
+vrfdir list
+sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  5            KEVM-CM-^DT
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:a494305eb971fa6679f92b40576974f33f18db4d601784bd0f6bc1756e4930a1  5            back\slash
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            dir/b
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+sha256:92bb8dfca790bff5f828acc389dd2b4035bbd5d3dd18b5f919372b4c6913fd5a  5            iso8859-1: M-D
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            space name
+
+sha256sum can verify the files with the export
+exit value: 0
+
+upgrade has nothing to upgrade
+exit value: 0
+
+a file is corrupted
+M a
+1 file(s) modified
+exit value: 2
+
+reading does not change the file
+exit value: 0

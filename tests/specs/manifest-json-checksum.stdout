@@ -1,0 +1,22 @@
+a digit of the checksum of a file
+exit value: 3
+the size of a file
+exit value: 3
+a letter of a name
+exit value: 3
+the checksum of manifest.json is missing
+exit value: 3
+the version is changed to an older one
+exit value: 3
+every command stops, check does not blame the file
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+add does not overwrite the damaged manifest
+exit value: 0
+the formatting of the JSON does not matter
+exit value: 0

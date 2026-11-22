@@ -63,7 +63,9 @@ on the system where the files were added.
 
 vrfdir works in the current directory, which has to be the top
 directory of the data. The checksums are stored there in
-`.vrfdir/manifest.json`.
+`.vrfdir/manifest.json`. It has a checksum of its own content, so
+a damaged `manifest.json` is reported as such and not as corrupted
+files. Do not edit it by hand, vrfdir refuses the changed file.
 
 Create the repository and add all the files:
 

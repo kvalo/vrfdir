@@ -2,11 +2,12 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test that a manifest.json of format version 2, the current one, is
-# read as it is. tests/data/manifest-v2.json is a file of the format
-# version 2, written by vrfdir. It must never be regenerated: when the
-# format changes, a new vrfdir has to read this file as it is, see
-# MANIFEST_VERSION.
+# test that a manifest.json of format version 2, which has no checksum
+# of its own content, still works. It is read as it is and converted
+# by the next write. tests/data/manifest-v2.json is a file of the
+# format version 2, written by vrfdir. It must never be regenerated:
+# when the format changes, a new vrfdir has to read this file as it is,
+# see MANIFEST_VERSION.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!
@@ -46,17 +47,20 @@ echo sha256sum can verify the files with the export
 "$SRCDIR/vrfdir" export | sha256sum -c --quiet
 echo "exit value: ${PIPESTATUS[1]}"
 echo
-echo upgrade has nothing to upgrade
+echo reading does not change the file
+cmp .vrfdir/manifest.json "$SRCDIR/tests/data/manifest-v2.json"
+echo "exit value: $?"
+echo
+echo upgrade converts the file, it has nothing else to upgrade
 "$SRCDIR/vrfdir" upgrade --quiet
 echo "exit value: $?"
+grep -o '"version": [0-9]*' .vrfdir/manifest.json
+"$SRCDIR/vrfdir" info | grep Manifest
+"$SRCDIR/vrfdir" list | cat -v
 echo
 echo a file is corrupted
 printf 'xxxx\n' > a
 "$SRCDIR/vrfdir" check --quiet
-echo "exit value: $?"
-echo
-echo reading does not change the file
-cmp .vrfdir/manifest.json "$SRCDIR/tests/data/manifest-v2.json"
 echo "exit value: $?"
 
 # cleanup

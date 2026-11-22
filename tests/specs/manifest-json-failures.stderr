@@ -5,7 +5,7 @@ Error: the repository .vrfdir/manifest.json is damaged: it is not a text file
 Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing
 Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing
 Error: the repository .vrfdir/manifest.json is damaged: invalid version 0
-Error: the repository .vrfdir/manifest.json has format version 3 but this vrfdir knows only version 2, it was written by a newer vrfdir
+Error: the repository .vrfdir/manifest.json has format version 4 but this vrfdir knows only version 3, it was written by a newer vrfdir
 Error: the repository .vrfdir/manifest.json is damaged: invalid file name 'bad-\ud800-name'
 Error: the repository .vrfdir/manifest.json is damaged: invalid checksum or size of a
 Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing

@@ -47,12 +47,21 @@ def version_string():
     return '%s.%s' % (VERSION, digest)
 
 
-MANIFEST_VERSION = 2
+MANIFEST_VERSION = 3
 
 # The manifest.json of this version has the MD5 checksum in the 'md5sum'
 # key, without the algorithm. It is still read and converted to
 # MANIFEST_VERSION by the next write.
 MD5_MANIFEST_VERSION = 1
+
+# The first version with the algorithm in front of the checksum, in the
+# 'checksum' key of an entry.
+ALGORITHM_MANIFEST_VERSION = 2
+
+# The first version with the checksum of its own content, see
+# manifest_checksum(). The older ones are read without it.
+CHECKSUMMED_MANIFEST_VERSION = 3
+MANIFEST_CHECKSUM_RE = re.compile('sha256:[0-9a-f]{64}')
 
 # What the manifest was called before MANIFEST_VERSION 1. It is still
 # read when there is no manifest.json and removed by the next write.
@@ -431,6 +440,24 @@ def damaged_error(reason, path=VRFDIR_MANIFEST_PATH):
     return VrfdirError('the repository %s is damaged: %s' % (path, reason))
 
 
+# The checksum of the content of manifest.json, which is stored in it
+# so that a flipped bit in a name, a checksum or a size is noticed.
+# files has the keys and the entries as they are in manifest.json, the
+# foreign ones too. It is calculated from the values and not from the
+# text of the file, so the formatting of the JSON does not matter. A
+# name cannot have a NUL, so it separates the fields.
+def manifest_checksum(version, files):
+    h = hashlib.sha256(b'vrfdir manifest %d\n' % version)
+
+    for key in sorted(files, key=lambda k: k.encode('utf-8',
+                                                    'surrogateescape')):
+        h.update(key.encode('utf-8', 'surrogateescape') + b'\0')
+        h.update(files[key]['checksum'].encode('ascii') + b'\0')
+        h.update(b'%d\0' % files[key]['size'])
+
+    return 'sha256:' + h.hexdigest()
+
+
 class VrfdirRepo:
 
     def load_json(self, buf):
@@ -478,8 +505,27 @@ class VrfdirRepo:
             raise damaged_error('invalid version %d' % self.version,
                                 self.path)
 
+        # An older version never had the checksum, the version itself
+        # has changed.
+        checksummed = self.version >= CHECKSUMMED_MANIFEST_VERSION
+        if 'checksum' in a and not checksummed:
+            raise damaged_error('invalid version %d' % self.version,
+                                self.path)
+
+        if checksummed:
+            self.checksum = a.get('checksum')
+
+            if self.checksum is None:
+                raise damaged_error('the checksum of the repository is '
+                                    'missing', self.path)
+
+            if (not isinstance(self.checksum, str) or
+                    not MANIFEST_CHECKSUM_RE.fullmatch(self.checksum)):
+                raise damaged_error('invalid checksum of the repository',
+                                    self.path)
+
         # the entries have the MD5 checksum in 'md5sum'
-        md5_format = self.version < MANIFEST_VERSION
+        md5_format = self.version < ALGORITHM_MANIFEST_VERSION
 
         for key in fi:
             foreign = False
@@ -536,6 +582,15 @@ class VrfdirRepo:
             else:
                 self.files[name] = fi[key]
 
+        # Only now, every entry has a valid checksum and size. If the
+        # files were damaged instead, check would blame the files.
+        if (checksummed and
+                manifest_checksum(self.version, fi) != self.checksum):
+            raise damaged_error('its content does not match its checksum. '
+                                'The checksums of the files cannot be '
+                                'trusted, restore %s from a backup' %
+                                self.path, self.path)
+
     def dump_json(self):
         a = {}
 
@@ -546,6 +601,9 @@ class VrfdirRepo:
             fi[name_to_json(name)] = self.files[name]
 
         fi.update(self.foreign)
+
+        self.checksum = manifest_checksum(self.version, fi)
+        a['checksum'] = self.checksum
 
         a['files'] = fi
 
@@ -1047,6 +1105,10 @@ class VrfdirRepo:
         self.legacy = legacy
         self.path = VRFDIR_LEGACY_PATH if legacy else VRFDIR_MANIFEST_PATH
 
+        # the checksum of the content, None until it is read or written
+        # and in a manifest of an older version
+        self.checksum = None
+
         # The entries of the manifest whose name cannot be the name of
         # a file on this system, see is_native_name(). The keys are
         # the keys of the manifest.
@@ -1388,6 +1450,7 @@ def cmd_info(args):
 
     if args.machine_readable:
         print('version=%d' % stats['FileVersion'])
+        print('manifest=%s' % (repo.checksum or ''))
         print('files=%d' % stats['Files'])
         print('size=%d' % stats['Size'])
         print('sha256=%d' % sha256)
@@ -1399,6 +1462,12 @@ def cmd_info(args):
         return
 
     print('Format:       version %d' % stats['FileVersion'])
+
+    if repo.checksum is not None:
+        print('Manifest:     %s' % repo.checksum)
+    else:
+        print("Manifest:     no checksum (run 'vrfdir upgrade')")
+
     print('Files:        %d' % stats['Files'])
     print('Total size:   %s' % bytes2human(stats['Size']))
 
@@ -1431,6 +1500,12 @@ directory of the data. The checksums are stored there in
 .vrfdir/manifest.json. A repository from an older vrfdir, which
 has .vrfdir/hashes.json instead, is read as it is and converted to
 manifest.json by the next command which saves the repository.
+
+manifest.json also has a checksum of its own content, and every
+command verifies it when it reads the repository. If it does not
+match, manifest.json is damaged, not the files, and the command
+stops with an error (exit code 3). Restore manifest.json from a
+backup then.
 
 A repository from an older vrfdir has the MD5 checksum of the files
 it added. They are still checked as before, run 'vrfdir upgrade' to
@@ -1547,6 +1622,10 @@ regular file anymore, the checksums are not checked at all. Run
 'vrfdir status' to see those files. The files which are not added are
 ignored.
 
+The checksum of manifest.json itself is verified first. If it does
+not match, nothing is checked: the damage is in manifest.json and
+the checksums of the files cannot be trusted.
+
 A file with a wrong checksum is printed on its own line (a name with
 a newline is escaped, see 'vrfdir --help'):
 
@@ -1631,6 +1710,10 @@ HELP_INFO = '''\
 Show information about the repository:
 
   Format       the version of the format of .vrfdir/manifest.json
+  Manifest     the checksum of the content of manifest.json, which
+               vrfdir verifies every time it reads the repository. A
+               repository of an older format has none until
+               'vrfdir upgrade' or 'vrfdir add' saves it
   Files        the number of the added files
   Total size   the total size of the added files
   Checksums    how many files have a SHA-256 and how many an MD5
@@ -1641,10 +1724,11 @@ Show information about the repository:
                the five largest files, biggest first
 
 A name with a newline is escaped, see 'vrfdir --help'. Sizes are
-shown in KiB, MiB and so on. With --machine-readable the
-exact values are printed as key=value lines instead, in the order
-version, files, size, sha256, md5, foreign and largest.N (size in
-bytes, a space and the name), without the hints.
+shown in KiB, MiB and so on. With --machine-readable the exact values
+are printed as key=value lines instead, in the order version,
+manifest (empty when there is no checksum), files, size, sha256, md5,
+foreign and largest.N (size in bytes, a space and the name), without
+the hints.
 
 exit codes:
   0    the information was printed

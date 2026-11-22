@@ -12,6 +12,14 @@ project adheres to [Semantic Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+
+- manifest.json has a checksum of its own content (format version
+  3), verified every time it is read. A damaged manifest.json is an
+  error about manifest.json, not a corrupted file. `vrfdir info`
+  shows the checksum. A repository of an older format is converted
+  by the next command which saves it, for example `vrfdir upgrade`.
+
 ### Changed
 
 - `vrfdir list` and `vrfdir export` print the files sorted by the

@@ -1,4 +1,5 @@
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:f72e16e9d7fa7ba9ddd5865f6eae311f8412efe742054c67e54589b53ad63f7b
 Files:        3
 Total size:   15 B
 Checksums:    3 sha256, 0 md5
@@ -7,7 +8,8 @@ Largest files:
         5 B  a
         5 B  b
         5 B  c
-version=2
+version=3
+manifest=sha256:f72e16e9d7fa7ba9ddd5865f6eae311f8412efe742054c67e54589b53ad63f7b
 files=3
 size=15
 sha256=3

@@ -18,7 +18,8 @@ exit value: 1
 the same file with other spellings
 exit value: 0
 vrfdir info
-Format:       version 2
+Format:       version 3
+Manifest:     sha256:f72e16e9d7fa7ba9ddd5865f6eae311f8412efe742054c67e54589b53ad63f7b
 Files:        3
 Total size:   15 B
 Checksums:    3 sha256, 0 md5
