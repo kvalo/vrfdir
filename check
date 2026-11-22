@@ -11,4 +11,25 @@ if [ "$(id -u)" = 0 ]; then
     exit 1
 fi
 
-cmdspecs "$@" tests/specs
+# tests/specs-linux needs names which are not valid UTF-8, names which
+# differ only in the case, /dev/full and the error texts of Linux.
+# macOS cannot do that, CI runs only tests/specs there.
+portable=
+n=$#
+while [ "$n" -gt 0 ]; do
+    if [ "$1" = "--portable" ]; then
+        portable=1
+        shift
+    else
+        set -- "$@" "$1"
+        shift
+    fi
+    n=$((n - 1))
+done
+
+set -- "$@" tests/specs
+if [ -z "$portable" ]; then
+    set -- "$@" tests/specs-linux
+fi
+
+cmdspecs "$@"

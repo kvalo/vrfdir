@@ -75,8 +75,8 @@ Only the .vrfdir in the current directory is skipped, a
 sub/.vrfdir/manifest.json is a normal file which add adds and status
 shows. That may be wanted (a repository inside the data is just data),
 but the help texts do not say it. Decide, document it in the help
-text of add and test it. tests/specs/case-names.script records what
-happens now.
+text of add and test it. tests/specs-linux/case-names.script records
+what happens now.
 
 ## every time manifest.json is modified, create a backup file
 

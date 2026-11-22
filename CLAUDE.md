@@ -22,8 +22,11 @@ checksums), the tests use them to check that.
 - Run all tests: `./check` (it refuses to run as root, several tests
   need a file which cannot be read)
 - Run one test: `./check -t <name>` (base name of a script in
-  `tests/specs/`, e.g. `-t status`; `-t` can be repeated)
+  `tests/specs/` or `tests/specs-linux/`, e.g. `-t status`; `-t` can
+  be repeated)
 - Keep temporary data of a failed test: `./check -k`
+- Run only the tests which work on macOS: `./check --portable` (it
+  leaves out `tests/specs-linux/`)
 - Run the pytest unit tests: `./unit [pytest options]` (needs
   python3-pytest, works as root too as no unit test needs an
   unreadable file)
@@ -57,17 +60,22 @@ of this repository. It is available from
   output is compared with `<name>.stdout`, and with `<name>.stderr`
   and `<name>.exit` (expected exit code) when present. A change to
   vrfdir's output needs the matching expected files updated.
+- A test which cannot work on macOS goes to `tests/specs-linux/`
+  (same format), as cmdspecs cannot skip a test. That is a test which
+  needs a file name which is not valid UTF-8 (APFS refuses it), names
+  which differ only in the case or the normalisation form, `/dev/full`
+  or an error text of Linux. `./check --portable` leaves them out.
 - Scripts work in `$DATADIR` (temporary directory), call
   `$SRCDIR/vrfdir` and `$SRCDIR/tests/genbackupdata`, and remove
   `.vrfdir` and their data at the end.
 - `filenames.script`, `filenames-invalid.script`, `encoding.script`
-  and `scan.script` in `tests/specs/` must stay bash, not sh: dash
+  and `scan.script` in `tests/specs-linux/` must stay bash, not sh: dash
   cannot create the weird filenames they need.
 - The expected files are UTF-8. Output with file names which are not
   valid UTF-8 is piped through `cat -v` in the scripts.
 - `tests/genbackupdata` is the local test data generator. Its output
-  must stay deterministic; `tests/specs/genbackupdata.script` checks
-  that.
+  must stay deterministic; `tests/specs-linux/genbackupdata.script`
+  checks that.
 
 ## Unit tests
 
