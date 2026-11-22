@@ -1,0 +1,59 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test paths which the add command must refuse
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+try_add() {
+    "$SRCDIR/vrfdir" add --quiet "$@"
+    retval=$?
+
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+mkfifo fifo
+
+echo missing file
+try_add a no-such-file
+
+echo parent directory
+try_add ../a
+
+echo absolute path
+try_add /dev/null
+
+echo .vrfdir directory
+try_add .vrfdir/manifest.json
+
+echo fifo
+try_add fifo
+
+# not the same as '.', which would add everything
+echo empty name
+try_add ''
+
+echo file as a directory
+try_add a/b
+
+# Note: this does not work as root, which has the permission anyway.
+echo no permission to the directory
+mkdir locked
+echo bbbb > locked/b
+chmod 000 locked
+try_add locked/b
+chmod 755 locked
+
+# nothing was added, not even the valid file given with the missing one
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a fifo locked

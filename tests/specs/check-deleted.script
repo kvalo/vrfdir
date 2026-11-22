@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that the check command does not run the checksums when an
+# added file is deleted or its size has changed
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+
+"$SRCDIR/vrfdir" add --quiet a b c
+
+rm a
+echo bbbbbbbb > b
+
+# same size, different content, but this is not checked
+echo dddd > c
+
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 1 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# cleanup
+rm -fr .vrfdir b c

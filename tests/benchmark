@@ -1,0 +1,203 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+import argparse
+import os
+import pstats
+import shlex
+import shutil
+import subprocess
+import sys
+import tempfile
+import timeit
+
+# The scripts are found from the location of this file, so that the
+# benchmark can be run from any directory.
+TESTSDIR = os.path.dirname(os.path.abspath(__file__))
+GENBACKUPDATA = os.path.join(TESTSDIR, 'genbackupdata')
+VRFDIR = os.path.join(os.path.dirname(TESTSDIR), 'vrfdir')
+
+# The same values as vrfdir has. An error is not 1, that is what a
+# Python stacktrace gives.
+EXIT_ERROR = 3
+EXIT_USAGE = 64
+EXIT_INTERRUPTED = 130
+
+# The data has to fit in the default place for temporary files, which
+# can be a tmpfs of 16 GB. The timed commands of simple_benchmark take
+# about 9 seconds with it on the workstation of the author, at about
+# 2.2 seconds per GiB. Use --data-total-size for a longer run.
+DEFAULT_DATA_TOTAL_SIZE = '4G'
+
+PROFILE_LINES = 10
+
+DESCRIPTION = '''\
+Measure how long the commands of vrfdir take. The test data is created
+with tests/genbackupdata in a temporary directory, which is removed at
+the end. Creating the data is not measured. The progress meter of
+vrfdir is switched off, as a terminal would change the times.
+
+tests:
+  simple_benchmark  init, add, status and check, all of them measured
+  benchmark_status  init and add as the setup, only status measured
+
+Every command has to exit with 0, otherwise the benchmark fails. The
+times are wall clock seconds. With --profile the commands are run
+under the Python profiler, which makes them slower, and the
+{lines} functions which used the most time are printed instead of
+the times.
+'''.format(lines=PROFILE_LINES)
+
+
+class BenchmarkError(Exception):
+    pass
+
+
+# argparse exits with 2 on a wrong command line
+class BenchmarkArgumentParser(argparse.ArgumentParser):
+
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(EXIT_USAGE, f"Error: {message}\n")
+
+
+class Benchmark:
+
+    def __init__(self, args, workdir):
+        self.args = args
+        self.datadir = os.path.join(workdir, 'data')
+        # outside of datadir, otherwise the file would be a part of the
+        # data which vrfdir adds and checks
+        self.stats_file = os.path.join(workdir, 'profile.stats')
+        self.data_size = 0
+        self.results = []
+
+    def create_data(self):
+        cmd = [GENBACKUPDATA, '--quiet',
+               f'--create={self.args.data_total_size}', self.datadir]
+
+        print(f'Creating {self.args.data_total_size} of test data')
+        ret = subprocess.run(cmd).returncode
+        if ret != 0:
+            raise BenchmarkError(f'cannot create the test data: '
+                                 f'genbackupdata exited with {ret}')
+
+        for dirpath, _, filenames in os.walk(self.datadir):
+            for name in filenames:
+                self.data_size += os.path.getsize(
+                    os.path.join(dirpath, name))
+
+    def run(self, *argv, measure=True):
+        """Run vrfdir in datadir. With measure=False it is only setup."""
+        cmd = [VRFDIR, *argv]
+        print(shlex.join(os.path.basename(c) if i == 0 else c
+                         for i, c in enumerate(cmd)))
+
+        profile = measure and self.args.profile
+        if profile:
+            cmd = [sys.executable, '-m', 'cProfile', '-o', self.stats_file,
+                   *cmd]
+
+        start = timeit.default_timer()
+        ret = subprocess.run(cmd, cwd=self.datadir).returncode
+        elapsed = timeit.default_timer() - start
+
+        if ret != 0:
+            raise BenchmarkError(f'vrfdir {argv[0]} exited with {ret}')
+
+        if profile:
+            p = pstats.Stats(self.stats_file)
+            p.strip_dirs()
+            p.sort_stats('time')
+            p.print_stats(PROFILE_LINES)
+        elif measure:
+            print(f'Time: {elapsed:.1f} s')
+            print()
+            self.results.append((argv[0], elapsed))
+
+    def print_summary(self):
+        if not self.results:
+            return
+
+        mib = self.data_size / (1024 * 1024)
+        print(f'Data: {mib:.0f} MiB')
+        for name, elapsed in self.results:
+            # only the commands which read the files have a speed
+            speed = ''
+            if name in ('add', 'check') and elapsed > 0:
+                speed = f'  {mib / elapsed:.0f} MiB/s'
+            print(f'{name:8} {elapsed:7.1f} s{speed}')
+        print(f'{"total":8} {sum(e for _, e in self.results):7.1f} s')
+
+    def simple_benchmark(self):
+        self.run('init')
+        self.run('add', '-q', '.')
+        self.run('status')
+        self.run('check', '-q')
+
+    def benchmark_status(self):
+        self.run('init', measure=False)
+        self.run('add', '-q', '.', measure=False)
+        self.run('status')
+
+
+def main():
+    tests = ['simple_benchmark', 'benchmark_status']
+
+    parser = BenchmarkArgumentParser(
+        description=DESCRIPTION,
+        formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser.add_argument('-p', '--profile', action='store_true',
+                        help='run the measured commands under the Python '
+                        'profiler and print the profile instead of the '
+                        'times')
+    parser.add_argument('-k', '--keep-datadir', action='store_true',
+                        help='do not delete the temporary directory '
+                        'and print where it is')
+    parser.add_argument('-s', '--data-total-size', metavar='SIZE',
+                        default=DEFAULT_DATA_TOTAL_SIZE,
+                        help='total size of the test data in bytes, with '
+                        'the optional suffixes k, M and G as '
+                        'genbackupdata has them (default: %(default)s)')
+    parser.add_argument('-d', '--directory', metavar='DIR',
+                        help='create the temporary directory in DIR '
+                        'instead of the default place for temporary '
+                        'files, which can be a tmpfs in the memory '
+                        'and then the disk is not measured')
+    parser.add_argument('test', metavar='TEST', nargs='?',
+                        choices=tests, default='simple_benchmark',
+                        help='test to run, one of: %s (default: '
+                        '%%(default)s)' % ', '.join(tests))
+
+    args = parser.parse_args()
+
+    try:
+        workdir = tempfile.mkdtemp(prefix='vrfdir-benchmark-',
+                                   dir=args.directory)
+    except OSError as e:
+        raise BenchmarkError(f'cannot create a temporary directory: '
+                             f'{e.strerror or e}')
+
+    try:
+        print(f'Running test {args.test}')
+        benchmark = Benchmark(args, workdir)
+        benchmark.create_data()
+        getattr(benchmark, args.test)()
+        benchmark.print_summary()
+    finally:
+        if args.keep_datadir:
+            print(f'Keeping the temporary directory {workdir}')
+        else:
+            shutil.rmtree(workdir, ignore_errors=True)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    except BenchmarkError as e:
+        print(f'Error: {e}', file=sys.stderr)
+        sys.exit(EXIT_ERROR)
+    except KeyboardInterrupt:
+        print('Error: interrupted', file=sys.stderr)
+        sys.exit(EXIT_INTERRUPTED)

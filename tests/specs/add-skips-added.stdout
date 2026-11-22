@@ -1,0 +1,29 @@
+same size, different content
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+vrfdir check
+M a
+1 file(s) modified
+exit value: 2
+different size
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+vrfdir status
+S b
+exit value: 1
+the same file with other spellings
+exit value: 0
+vrfdir info
+Format:       version 2
+Files:        3
+Total size:   15 B
+Checksums:    3 sha256, 0 md5
+
+Largest files:
+        5 B  a
+        5 B  b
+        5 B  c

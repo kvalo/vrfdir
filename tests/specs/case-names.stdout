@@ -1,0 +1,17 @@
+add
+exit value: 0
+vrfdir list
+sha256:4677942dfa3e74b5dea7484661a2485bb73ba422eb72d311fdb39372c019c615  5            A
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:f1d626e7a70538f6a9eb0b65d8b71a12083a06da446dcb0a7943d9479183e4cf  4            aM-LM-^H
+sha256:dcde261ae09ae7d38054ee36faa1e49d3d845651f7e3a26b8f26919476345df0  4            M-CM-$
+vrfdir status
+exit value: 0
+vrfdir check
+exit value: 0
+.vrfdir in a subdirectory is a normal directory
+? sub/.vrfdir/manifest.json
+exit value: 1
+exit value: 0
+sha256:940a68104d3b690442453f4be394b0a14721a174127d84c1c2f834b7ad05d684  6            sub/.vrfdir/manifest.json
+5 files

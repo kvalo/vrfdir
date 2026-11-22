@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test status command
+
+set -e
+
+cd "$DATADIR"
+
+# create simple repo
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet a b c
+
+# check that status reports empty (all ok)
+"$SRCDIR/vrfdir" status
+
+# corrupt repo
+rm a b
+mkdir a
+
+echo foobar > not-yet-added
+
+echo more-data >> c
+
+# status should notice changes, status.exit has the expected exit value
+retval=0
+"$SRCDIR/vrfdir" status || retval=$?
+
+# cleanup
+rm -fr .vrfdir a b c not-yet-added
+
+exit $retval

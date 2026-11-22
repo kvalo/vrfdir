@@ -1,0 +1,81 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a hashes.json written by an earlier vrfdir (before the
+# rename to manifest.json) still works.
+# tests/data/hashes-v0.json is a file of the format version 0, written
+# by vrfdir. It must never be regenerated: when the format changes, a
+# new vrfdir has to read this file as it is, see MANIFEST_VERSION.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+printf 'aaaa\n' > a
+mkdir dir
+printf 'bbbb\n' > dir/b
+printf 'cccc\n' > 'space name'
+: > empty
+printf 'dddd\n' > "$(printf 'KEV\xc3\x84T')"
+printf 'eeee\n' > "$(printf 'iso8859-1: \xc4')"
+printf 'ffff\n' > 'back\slash'
+
+mkdir .vrfdir
+cp "$SRCDIR/tests/data/hashes-v0.json" .vrfdir/hashes.json
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir status
+"$SRCDIR/vrfdir" status | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+echo
+echo vrfdir export, the MD5 checksums cannot be verified by sha256sum
+"$SRCDIR/vrfdir" export 2>&1 | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+
+echo a file is corrupted
+printf 'xxxx\n' > a
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo reading does not touch the old file
+ls .vrfdir
+echo
+echo adding converts the old file and keeps what it has
+echo gggg > g
+"$SRCDIR/vrfdir" add --quiet g
+"$SRCDIR/vrfdir" info | cat -v
+ls .vrfdir
+echo
+echo upgrade does not replace the checksum of a corrupted file
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list | cat -v
+echo
+echo the file is repaired and upgrade replaces all the checksums
+printf 'aaaa\n' > a
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list | cat -v
+echo
+echo sha256sum can verify the files with the export
+"$SRCDIR/vrfdir" export | sha256sum -c --quiet
+echo "exit value: ${PIPESTATUS[1]}"
+
+# cleanup
+rm -fr .vrfdir a dir 'space name' empty "$(printf 'KEV\xc3\x84T')" \
+   "$(printf 'iso8859-1: \xc4')" 'back\slash' g

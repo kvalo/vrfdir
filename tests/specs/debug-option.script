@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that --debug only adds the debug messages to stderr, the output
+# and the exit value are the same
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# compare ARGS...: run with and without -d
+compare() {
+    "$SRCDIR/vrfdir" "$@" > plain.txt 2> /dev/null
+    plain=$?
+    "$SRCDIR/vrfdir" -d "$@" > debug.txt 2> debug-err.txt
+    debug=$?
+
+    if [ $plain != $debug ]; then
+        echo "$*: Wrong exit value: $debug, without -d $plain"
+    fi
+
+    if ! cmp -s plain.txt debug.txt; then
+        echo "$*: the output is different"
+    fi
+
+    # every line is a message of vrfdir, the lines of the multi-line
+    # ones are not checked
+    if ! grep -q '^Debug: ' debug-err.txt; then
+        echo "$*: no debug messages"
+    fi
+
+    if grep -v '^Debug: ' debug-err.txt | grep -q '^[A-Za-z]*: '; then
+        echo "$*: a message which is not Debug"
+    fi
+}
+
+echo aaaa > a
+echo bbbb > b
+echo "init with -d"
+"$SRCDIR/vrfdir" --debug init 2> /dev/null
+echo "exit value: $?"
+
+compare add --quiet a b
+echo cccc > c
+compare status
+compare check --quiet
+compare list
+compare export
+compare info
+compare scan
+
+echo the long option
+"$SRCDIR/vrfdir" --debug list 2> /dev/null
+echo "exit value: $?"
+echo -d is an option of vrfdir and not of the commands
+"$SRCDIR/vrfdir" list -d 2> /dev/null
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a b c plain.txt debug.txt debug-err.txt

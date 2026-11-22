@@ -1,0 +1,74 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test filenames which are not valid UTF-8
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# The names are printed as the bytes they are. cat -v shows the bytes
+# so that the expected output is valid UTF-8.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+echo "test iso-8859-1 character"
+file_8859=$(printf 'iso8859-1-a-with-diaeresis: \xc4')
+echo 0000000000 > "$file_8859"
+"$SRCDIR/vrfdir" add --quiet "$file_8859"
+echo
+
+echo "test iso-8859-1 and utf-8 characters in subdir"
+subdir=$(printf 'dir-\xe4')
+mkdir "$subdir"
+file_subdir=$subdir/$(printf 'KEV\xc3\x84T-\xc4')
+echo 1111111111 > "$file_subdir"
+"$SRCDIR/vrfdir" add --quiet "$subdir"
+echo
+
+file_unknown=$(printf 'unknown-\xf6')
+echo 2222222222 > "$file_unknown"
+
+echo ls --escape
+LC_ALL=C ls --escape
+echo
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+echo
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+
+# the names have to be the same bytes which the files have
+echo vrfdir export
+"$SRCDIR/vrfdir" export | sha256sum -c --quiet
+echo "exit value: ${PIPESTATUS[1]}"
+echo
+
+# same size, different content
+echo 3333333333 > "$file_8859"
+
+echo vrfdir check with a modified file
+"$SRCDIR/vrfdir" check --quiet | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+
+# the error messages are not file name bytes, the byte is escaped
+echo vrfdir add with a missing file
+"$SRCDIR/vrfdir" add --quiet "$(printf 'missing-\xe5')"
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir "$file_8859" "$subdir" "$file_unknown"

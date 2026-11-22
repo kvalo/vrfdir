@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# init empty directory and run few commands
+
+set -e
+
+cd "$DATADIR"
+
+"$SRCDIR/vrfdir" init
+
+echo aaaa > a
+echo bbbb > b
+
+"$SRCDIR/vrfdir" add --quiet a b
+
+# try to add the same file twice
+"$SRCDIR/vrfdir" add --quiet a
+
+"$SRCDIR/vrfdir" status
+
+"$SRCDIR/vrfdir" check --quiet
+
+"$SRCDIR/vrfdir" list
+
+# make sure that we use exactly same format as sha256sum
+"$SRCDIR/vrfdir" export > 1.list
+sha256sum a b > 2.list
+
+if ! cmp 1.list 2.list; then
+    echo "export does not match sha256sum output!"
+fi
+
+# cleanup
+rm -fr .vrfdir a b c 1.list 2.list

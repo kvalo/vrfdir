@@ -1,0 +1,45 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that add does not read or update a file which is already added,
+# also when the name is spelled in another way
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a b
+
+echo same size, different content
+echo xxxx > a
+"$SRCDIR/vrfdir" add --quiet a
+echo "exit value: $?"
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+echo different size
+echo yyyyyyyy > b
+"$SRCDIR/vrfdir" add --quiet b
+echo "exit value: $?"
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo the same file with other spellings
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet c ./c c//
+"$SRCDIR/vrfdir" add --quiet ./a ./b ./c .//c
+echo "exit value: $?"
+echo vrfdir info
+"$SRCDIR/vrfdir" info
+
+# cleanup
+rm -fr .vrfdir a b c

@@ -1,0 +1,165 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a broken manifest.json is reported as an error
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+check_status() {
+    "$SRCDIR/vrfdir" status
+    retval=$?
+
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+mkdir .vrfdir
+
+echo empty file
+: > .vrfdir/manifest.json
+check_status
+
+echo not json
+echo foobar > .vrfdir/manifest.json
+check_status
+
+echo truncated
+printf '[{"version": 2,\n "files": {"a": {"md5sum"' > .vrfdir/manifest.json
+check_status
+
+echo not a text file
+printf '\377\376\000' > .vrfdir/manifest.json
+check_status
+
+echo not a list
+echo '{"version": 2, "files": {}}' > .vrfdir/manifest.json
+check_status
+
+echo files missing
+echo '[{"version": 1}]' > .vrfdir/manifest.json
+check_status
+
+# version 0 is the version of hashes.json, not of manifest.json
+echo version 0 in manifest.json
+echo '[{"version": 0, "files": {}}]' > .vrfdir/manifest.json
+check_status
+
+echo newer version
+echo '[{"version": 3, "files": {}}]' > .vrfdir/manifest.json
+check_status
+
+# a surrogate which is not an escaped byte cannot be a file name
+echo invalid file name
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 2, "files": {"bad-\ud800-name": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}}}]
+EOF
+check_status
+
+# an entry without the size would fail later in the commands
+echo broken entry
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772"}}}]
+EOF
+check_status
+
+echo files is not an object
+echo '[{"version": 2, "files": ["a"]}]' > .vrfdir/manifest.json
+check_status
+
+echo negative size
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": -5}}}]
+EOF
+check_status
+
+# The checksum has the algorithm and the exact number of digits
+# check_checksum 'checksum'
+check_checksum() {
+    printf '[{"version": 2, "files": {"a": {"checksum": %s, "size": 5}}}]\n' \
+        "$1" > .vrfdir/manifest.json
+    check_status
+}
+
+echo checksum without the algorithm
+check_checksum '"11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772"'
+echo checksum of an unknown algorithm
+check_checksum '"sha1:70c881d4a26984ddce795f6f71817c9cf4480e79"'
+echo checksum of a wrong length
+check_checksum '"sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add77"'
+echo checksum with upper case digits
+check_checksum '"sha256:11A77C3D96C06974B53D7F40A577E6813739EB5C811B2A86F59038EA90ADD772"'
+echo checksum with other than digits
+check_checksum '"md5:e5828c564f71fea3a12dde8bd5d2706x"'
+echo checksum is a number
+check_checksum '5'
+
+# an md5sum key of a version 1 file which is not an md5 checksum
+echo checksum of version 1 is damaged
+printf '[{"version": 1, "files": {"a": {"md5sum": "abc", "size": 5}}}]\n' \
+    > .vrfdir/manifest.json
+check_status
+
+# false == 0 in Python
+echo version is not a number
+echo '[{"version": false, "files": {}}]' > .vrfdir/manifest.json
+check_status
+
+# too deep for the json module, must not be an internal error
+echo deep nesting
+head -c 100000 /dev/zero | tr '\0' '[' > .vrfdir/manifest.json
+check_status
+
+# Note: this does not work as root, which can read the file anyway.
+echo no permission
+echo '[{"version": 2, "files": {}}]' > .vrfdir/manifest.json
+chmod 000 .vrfdir/manifest.json
+check_status
+rm -f .vrfdir/manifest.json
+
+echo manifest.json is a directory
+mkdir .vrfdir/manifest.json
+check_status
+rmdir .vrfdir/manifest.json
+
+echo manifest.json missing
+check_status
+
+# written by older versions for a name with a backslash, must still work
+echo backslash before the checksum
+echo aaaa > 'back\slash'
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 1, "files": {"back\\slash": {"md5sum": "\\e5828c564f71fea3a12dde8bd5d27063", "size": 5}}}]
+EOF
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+rm 'back\slash'
+
+# a wrong command line must not look like corruption, which is 2
+check_usage() {
+    "$SRCDIR/vrfdir" "$@" 2> /dev/null
+    retval=$?
+
+    if [ $retval != 64 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+echo no command
+check_usage
+
+echo unknown command
+check_usage no-such-command
+
+echo unknown option
+check_usage check --no-such-option
+
+echo add without files
+check_usage add
+
+# cleanup
+rm -fr .vrfdir

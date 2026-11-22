@@ -1,0 +1,83 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test names with a newline or a carriage return: the output has one
+# line for every file, the name is escaped like md5sum does
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+nl=$'a\nb'
+cr=$'c\rd'
+fake=$'x\nM fake'
+echo aaaa > "$nl"
+echo bbbb > "$cr"
+echo cccc > "$fake"
+echo dddd > 'back\slash'
+echo eeee > 'back\nslash'
+"$SRCDIR/vrfdir" add --quiet .
+echo "exit value: $?"
+echo
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+echo
+
+echo vrfdir export
+"$SRCDIR/vrfdir" export | cat -v
+echo
+
+echo sha256sum -c accepts the exported names
+"$SRCDIR/vrfdir" export | sha256sum -c | LC_ALL=C sort
+echo
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info | cat -v
+"$SRCDIR/vrfdir" info --machine-readable | grep largest | cat -v
+echo
+
+echo vrfdir scan
+echo ffff > $'bad\n\xc4'
+"$SRCDIR/vrfdir" scan | cat -v
+rm $'bad\n\xc4'
+echo
+
+echo vrfdir status, nothing changed
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+echo
+
+echo vrfdir status, a size changed and a file is deleted
+echo more >> "$nl"
+rm "$cr"
+echo ffff > $'new\nfile'
+"$SRCDIR/vrfdir" status | cat -v
+echo
+
+echo vrfdir check, one file is changed and the sizes are the same
+rm "$nl" "$fake" 'back\slash'
+echo aaaa > "$nl"
+echo cccc > "$fake"
+echo dddd > 'back\slash'
+echo bbbb > "$cr"
+rm $'new\nfile'
+echo AAAA > "$nl"
+"$SRCDIR/vrfdir" check --quiet | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+
+echo the error messages have the name on one line
+chmod 000 "$fake"
+"$SRCDIR/vrfdir" check --quiet 2>&1 | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+chmod 644 "$fake"
+
+# cleanup
+rm -fr .vrfdir ./*

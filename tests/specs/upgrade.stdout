@@ -1,0 +1,121 @@
+nothing to upgrade in a new repository
+exit value: 0
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+
+all the files are upgraded
+repository converted to the latest format (version 2)
+4 file(s) upgraded to SHA-256
+exit value: 0
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+exit value: 0
+exit value: 0
+
+a second upgrade has nothing to upgrade and does not write
+exit value: 0
+
+files which have changed keep the MD5 checksum, the others are upgraded
+M a
+repository converted to the latest format (version 2)
+2 file(s) upgraded to SHA-256
+1 file(s) modified, they still have the MD5 checksum
+1 file(s) not upgraded because they are deleted or changed. Run 'vrfdir status' to see them
+exit value: 2
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a
+md5:9448a1bf333fadd2a57965ec38487b89  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+the changed files are still found by check
+1 file(s) deleted or changed, checksums not checked. Run 'vrfdir status' to see them
+exit value: 1
+
+a file which is deleted is not upgraded and the others are
+repository converted to the latest format (version 2)
+3 file(s) upgraded to SHA-256
+1 file(s) not upgraded because they are deleted or changed. Run 'vrfdir status' to see them
+exit value: 1
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:9448a1bf333fadd2a57965ec38487b89  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+
+a file which cannot be read is an error and the others are upgraded
+repository converted to the latest format (version 2)
+3 file(s) upgraded to SHA-256
+1 file(s) could not be upgraded
+exit value: 3
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:9448a1bf333fadd2a57965ec38487b89  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+
+corruption is more important than an error
+M a
+repository converted to the latest format (version 2)
+2 file(s) upgraded to SHA-256
+1 file(s) modified, they still have the MD5 checksum
+1 file(s) could not be upgraded
+exit value: 2
+
+a name outside of the directory is not read, also if the file exists
+repository converted to the latest format (version 2)
+2 file(s) upgraded to SHA-256
+1 file(s) not upgraded because they are deleted or changed. Run 'vrfdir status' to see them
+exit value: 1
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            ../outside
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+export does not work while it has the MD5 checksum
+Error: cannot export the checksums: 1 file(s) still have an MD5 checksum. Run 'vrfdir upgrade' first
+exit value: 3
+
+a directory which cannot be read is an error, its files are not upgraded
+repository converted to the latest format (version 2)
+1 file(s) upgraded to SHA-256
+exit value: 3
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            dir/c
+
+progress is shown without --quiet and ends with a line
+1
+
+interrupted, the files upgraded so far are saved
+exit value: 130
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:9448a1bf333fadd2a57965ec38487b89  5            b
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            dir/c
+md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
+the next upgrade continues
+3 file(s) upgraded to SHA-256
+exit value: 0
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            dir/c
+sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  0            empty
+
+interrupted before the first file is done, nothing is saved
+exit value: 130
+
+a repository without MD5 checksums is converted to the latest format
+repository converted to the latest format (version 2)
+exit value: 0
+[{"version": 2, "files": {}}]
+the old name is removed
+repository converted to the latest format (version 2)
+exit value: 0
+manifest.json
+[{"version": 2, "files": {}}]
+and the next upgrade does not write
+exit value: 0
+
+no repository
+exit value: 3
+
+wrong command line
+exit value: 64
+exit value: 64

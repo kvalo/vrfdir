@@ -1,0 +1,28 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+# don't set -e on purpose so that we can verify the exit value from
+# the check command
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+echo aaaa > a
+echo bbbb > b
+
+"$SRCDIR/vrfdir" add --quiet a b
+
+echo cccc > a
+
+# check command should exit with value 2 as the repo is corrupted
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 2 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# cleanup
+rm -fr .vrfdir a b

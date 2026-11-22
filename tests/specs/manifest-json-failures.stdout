@@ -1,0 +1,31 @@
+empty file
+not json
+truncated
+not a text file
+not a list
+files missing
+version 0 in manifest.json
+newer version
+invalid file name
+broken entry
+files is not an object
+negative size
+checksum without the algorithm
+checksum of an unknown algorithm
+checksum of a wrong length
+checksum with upper case digits
+checksum with other than digits
+checksum is a number
+checksum of version 1 is damaged
+version is not a number
+deep nesting
+no permission
+manifest.json is a directory
+manifest.json missing
+backslash before the checksum
+exit value: 0
+md5:e5828c564f71fea3a12dde8bd5d27063  5            back\slash
+no command
+unknown command
+unknown option
+add without files

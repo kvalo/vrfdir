@@ -1,0 +1,4 @@
+Error: a repository already exists in this directory, not overwriting .vrfdir/manifest.json
+Error: cannot create the repository: .vrfdir exists and is not a directory
+Error: cannot create the repository: .vrfdir exists and is not a directory
+Error: cannot create the directory .vrfdir: Permission denied

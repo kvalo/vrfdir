@@ -1,0 +1,185 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test vrfdir upgrade, which replaces the MD5 checksums with SHA-256
+# checksums. A file is upgraded only if it still has its MD5 checksum.
+#
+# Note: this script must use bash, not dash. The unreadable file needs
+# a normal user, which ./check makes sure of.
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# write a manifest.json of format version 1, which has only MD5
+# checksums, for the files. A file name must not need escaping.
+make_v1() {
+    local sep='' f sum size
+    printf '[{"version": 1, "files": {' > .vrfdir/manifest.json
+    for f in "$@"; do
+        sum=$(md5sum "$f" | cut -d' ' -f1)
+        size=$(wc -c < "$f" | tr -d ' ')
+        printf '%s"%s": {"md5sum": "%s", "size": %d}' "$sep" "$f" "$sum" \
+            "$size" >> .vrfdir/manifest.json
+        sep=', '
+    done
+    printf '}}]\n' >> .vrfdir/manifest.json
+}
+
+echo aaaa > a
+echo bbbb > b
+mkdir dir
+echo cccc > dir/c
+: > empty
+
+echo nothing to upgrade in a new repository
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet a b dir empty
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+echo
+echo all the files are upgraded
+mkdir -p .vrfdir
+make_v1 a b dir/c empty
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" export | sha256sum -c --quiet
+echo "exit value: ${PIPESTATUS[1]}"
+
+echo
+echo a second upgrade has nothing to upgrade and does not write
+cp .vrfdir/manifest.json manifest.before
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+cmp manifest.before .vrfdir/manifest.json
+rm manifest.before
+
+echo
+echo files which have changed keep the MD5 checksum, the others are upgraded
+make_v1 a b dir/c empty
+echo xxxx > a
+echo yyyyyy > b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+echo the changed files are still found by check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+echo
+echo a file which is deleted is not upgraded and the others are
+echo aaaa > a
+echo bbbb > b
+make_v1 a b dir/c empty
+rm b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+echo bbbb > b
+
+echo
+echo a file which cannot be read is an error and the others are upgraded
+make_v1 a b dir/c empty
+chmod 000 b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+chmod 644 b
+
+echo
+echo corruption is more important than an error
+make_v1 a b dir/c empty
+echo xxxx > a
+chmod 000 b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+chmod 644 b
+echo aaaa > a
+
+echo
+echo a name outside of the directory is not read, also if the file exists
+echo cccc > ../outside
+make_v1 a b
+sed -i 's|{"a"|{"../outside": {"md5sum": "b26795c69684a7c9cc4a94ff70a95b71", "size": 5}, "a"|' .vrfdir/manifest.json
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+rm ../outside
+echo export does not work while it has the MD5 checksum
+"$SRCDIR/vrfdir" export 2>&1
+echo "exit value: $?"
+
+echo
+echo a directory which cannot be read is an error, its files are not upgraded
+make_v1 a dir/c
+chmod 000 dir
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+chmod 755 dir
+"$SRCDIR/vrfdir" list
+
+echo
+echo progress is shown without --quiet and ends with a line
+make_v1 a b
+"$SRCDIR/vrfdir" upgrade | tr '\r' '\n' | tail -n 2 | grep -c 'upgraded to SHA-256'
+
+echo
+echo interrupted, the files upgraded so far are saved
+make_v1 a b dir/c empty
+"$SRCDIR/tests/sigint-at" 3 "$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+echo the next upgrade continues
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+echo
+echo interrupted before the first file is done, nothing is saved
+make_v1 a b dir/c empty
+cp .vrfdir/manifest.json manifest.before
+"$SRCDIR/tests/sigint-at" 1 "$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+cmp manifest.before .vrfdir/manifest.json
+rm manifest.before
+
+echo
+echo a repository without MD5 checksums is converted to the latest format
+rm -fr .vrfdir
+mkdir .vrfdir
+echo '[{"version": 1, "files": {}}]' > .vrfdir/manifest.json
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+cat .vrfdir/manifest.json
+echo the old name is removed
+rm -f .vrfdir/manifest.json
+echo '[{"version": 0, "files": {}}]' > .vrfdir/hashes.json
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+ls .vrfdir
+cat .vrfdir/manifest.json
+echo and the next upgrade does not write
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+
+echo
+echo no repository
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+
+echo
+echo wrong command line
+"$SRCDIR/vrfdir" upgrade --no-such-option 2> /dev/null
+echo "exit value: $?"
+"$SRCDIR/vrfdir" upgrade a 2> /dev/null
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a b dir empty

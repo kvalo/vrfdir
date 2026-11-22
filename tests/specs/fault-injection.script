@@ -1,0 +1,125 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the failures which a file permission cannot cause: a disk
+# error while reading a file, a file which disappears after it was
+# found, a full disk, a bug and Ctrl-C at the places where a file is
+# not hashed. tests/inject-at makes one call fail, the Nth one.
+#
+# The files are given on the command line, so that the order in which
+# they are handled does not depend on the filesystem.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# inject KIND N EXPECTED-EXIT vrfdir-arguments
+inject() {
+    kind=$1
+    n=$2
+    expected=$3
+    shift 3
+    "$SRCDIR/tests/inject-at" "$kind" "$n" "$SRCDIR/vrfdir" "$@"
+    retval=$?
+    if [ $retval != "$expected" ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet a b c
+
+echo check: disk error on the second file, the others are still checked
+inject eio-hash 2 3 check --quiet
+
+echo check: modified file and a disk error, corruption wins
+echo dddd > c
+inject eio-hash 2 2 check --quiet
+echo cccc > c
+
+echo add: disk error on the second file, the others are saved
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+inject eio-hash 2 3 add --quiet a b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo add: the second file is deleted after it was found
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+inject enoent-stat 2 3 add --quiet a b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo add: the first file is deleted just before it is hashed
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+inject enoent-stat 4 3 add --quiet a b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo add: full disk when saving, nothing is saved
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet a
+inject enospc-fsync 1 3 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+
+echo add: Ctrl-C when the directory is read, the repository is intact
+inject sigint-scandir 1 130 add --quiet .
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo add: Ctrl-C when saving, manifest.json is the old complete file
+inject sigint-replace 1 130 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+
+echo status: Ctrl-C when the directory is read
+inject sigint-scandir 1 130 status
+
+# A bug is exit value 3, which is not what a Python stacktrace gives (1,
+# differences). Only the first line is compared, the rest is the
+# stacktrace.
+echo a bug in check
+inject bug-hash 1 3 check --quiet 2> stderr.txt
+head -n 1 stderr.txt >&2
+echo a bug in add
+inject bug-hash 1 3 add --quiet b 2> stderr.txt
+head -n 1 stderr.txt >&2
+
+# Only one file is left, so that the Nth question is for it whatever
+# the order in the directory is.
+rm -fr .vrfdir b c stderr.txt
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet a
+
+echo status: the added file is deleted after it was found
+inject enoent-stat 1 1 status
+
+echo status: the added file cannot be read after it was found
+inject eacces-stat 1 3 status
+
+echo a file in a directory cannot be asked what it is
+for cmd in 'status' 'check --quiet' 'scan' 'add --quiet .'; do
+    echo "vrfdir $cmd"
+    # shellcheck disable=SC2086
+    inject eio-entry 1 3 $cmd
+done
+
+# no command catches this, main() has to
+echo an error with a file name which no command handles
+echo new > new
+inject eio-fsencode 1 3 status
+rm new
+
+# cleanup
+rm -fr .vrfdir a b c

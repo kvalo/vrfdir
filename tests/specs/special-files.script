@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that only regular files are handled and that only the .vrfdir
+# directory itself is ignored
+
+set -e
+
+cd "$DATADIR"
+
+"$SRCDIR/vrfdir" init
+
+mkdir dir
+echo aaaa > dir/a
+ln -s no-such-file dir/dangling
+ln -s a dir/link-to-a
+mkfifo dir/fifo
+echo bbbb > .vrfdir-notes
+mkdir .vrfdirs
+echo cccc > .vrfdirs/c
+
+# a file given twice is added once
+"$SRCDIR/vrfdir" add --quiet . dir dir/a
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list | sort
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+
+# cleanup
+rm -fr .vrfdir dir .vrfdir-notes .vrfdirs

@@ -1,0 +1,42 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a file which cannot be read is reported by check as an
+# error, not as modified, and does not prevent checking the other
+# files
+#
+# Note: this does not work as root, which can read the file anyway.
+
+# don't 'set -e' on purpose so that we can verify the exit value from
+# the check command
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet a b c
+chmod 000 b
+echo dddd > c
+
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+# corruption wins over the error
+if [ $retval != 2 ]; then
+    echo Wrong exit value: $retval
+fi
+
+echo check with only the unreadable file
+echo cccc > c
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# cleanup
+rm -fr .vrfdir a b c

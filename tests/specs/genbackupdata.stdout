@@ -1,0 +1,114 @@
+Create 9M of test data
+Total size:
+9437184
+
+Checksum of the file names and data:
+54f89e031dc261ff3dfb5502dd8b0156  -
+
+Compare the directories (should be identical):
+Directories are identical (deterministic)
+
+Create test data in a directory which is not empty
+Error: directory testdata is not empty
+Failed with exit code 3
+
+Create test data in a path which is a file
+Error: cannot create directory testfile: File exists
+Failed with exit code 3
+
+Create 1k of test data
+Total size:
+1024
+
+Create 1K of test data
+Total size:
+1024
+
+Invalid sizes:
+Error: argument --create: invalid size '1x'
+Error: argument --create: invalid size 'k'
+Error: argument --create: invalid size '1.5M'
+Error: argument --create: size must be positive
+Error: argument --create: invalid size '1kB'
+Error: argument --create: invalid size '1_000'
+Error: argument --create: invalid size '+5'
+Failed with exit code 64
+
+Exact sizes:
+1: 1
+511: 511
+512: 512
+513: 513
+1048577: 1048577
+
+Sub directories are created:
+yes
+File numbers are continuous:
+yes
+
+Create test data in a path which does not exist yet:
+identical
+identical
+
+Output without --quiet:
+Creating 3072 bytes of test data in verbose
+Created file file00000001 (120 bytes)
+Created file file00000002 (120 bytes)
+Created file file00000003 (120 bytes)
+Created file file00000004 (120 bytes)
+Created file file00000005 (120 bytes)
+Created file file00000006 (120 bytes)
+Created file file00000007 (120 bytes)
+Created file file00000008 (120 bytes)
+Created directory 1
+Created directory 2
+Created file 2/file00000009 (120 bytes)
+Created file 2/file00000010 (120 bytes)
+Created file file00000011 (120 bytes)
+Created directory 3
+Created file 3/file00000012 (120 bytes)
+Created file 3/file00000013 (120 bytes)
+Created file file00000014 (120 bytes)
+Created file file00000015 (120 bytes)
+Created file file00000016 (120 bytes)
+Created file file00000017 (120 bytes)
+Created file file00000018 (120 bytes)
+Created directory 4
+Created directory 5
+Created file 5/file00000019 (120 bytes)
+Created directory 6
+Created file 6/file00000020 (120 bytes)
+Created file 6/file00000021 (120 bytes)
+Created file 6/file00000022 (120 bytes)
+Created file file00000023 (120 bytes)
+Created file file00000024 (120 bytes)
+Created directory 7
+Created directory 8
+Created file 8/file00000025 (120 bytes)
+Created file 8/file00000026 (72 bytes)
+
+Total: 3072 bytes created in 26 files and 8 directories
+
+Wrong command lines:
+Error: the following arguments are required: --create
+Error: the following arguments are required: directory
+Error: unrecognized arguments: --foo
+Error: unrecognized arguments: b
+Error: argument --create: expected one argument
+Failed with exit code 64
+
+Create test data in a directory which is not writable:
+Error: cannot create file readonly/file00000001: Permission denied
+Failed with exit code 3
+
+Create test data in a directory which cannot be read:
+Error: cannot read directory unreadable: Permission denied
+Failed with exit code 3
+
+Output to a full device:
+Error: cannot write the output: No space left on device
+Failed with exit code 3
+
+Output to a closed stdout:
+Created the data
+

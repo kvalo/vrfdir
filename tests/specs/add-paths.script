@@ -1,0 +1,71 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the spellings of a path which add accepts, they have to give
+# the same name, and the ones it refuses
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# add_ok PATH...
+add_ok() {
+    "$SRCDIR/vrfdir" add --quiet "$@"
+    retval=$?
+    if [ $retval != 0 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+# add_refused PATH...
+add_refused() {
+    "$SRCDIR/vrfdir" add --quiet "$@"
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+mkdir dir
+echo aaaa > a
+echo bbbb > dir/b
+
+echo ./a
+add_ok ./a
+echo dir/../dir/./b
+add_ok dir/../dir/./b
+echo vrfdir list
+"$SRCDIR/vrfdir" list | sort -k 3
+
+echo a path which is the current directory
+rm -f .vrfdir/manifest.json
+"$SRCDIR/vrfdir" init
+add_ok dir/..
+add_ok ./dir/.
+echo vrfdir list
+"$SRCDIR/vrfdir" list | sort -k 3
+
+echo the paths outside of the current directory are refused
+rm -f .vrfdir/manifest.json
+"$SRCDIR/vrfdir" init
+add_refused ..
+add_refused ../
+add_refused dir/../..
+add_refused a/../../x
+# also the absolute path of a file inside the directory, the name of the
+# temporary directory is not the same every time
+echo the absolute path of a file inside the directory
+message=$("$SRCDIR/vrfdir" add --quiet "$PWD/a" 2>&1)
+retval=$?
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+echo "$message" | sed "s#$PWD#PWD#"
+echo one refused path and nothing is added
+add_refused a dir/../..
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a dir

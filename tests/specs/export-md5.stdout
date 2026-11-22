@@ -1,0 +1,12 @@
+one MD5 checksum
+exit value: 3
+a mix of the algorithms, nothing is printed at all
+exit value: 3
+list works
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:9448a1bf333fadd2a57965ec38487b89  5            b
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            ../c
+exit value: 0
+only SHA-256 checksums
+11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  a
+exit value: 0

@@ -1,0 +1,182 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run a script and make one of the operating system calls it uses fail
+# on the Nth call. This is deterministic, so that the tests of the
+# error handling do not depend on a broken disk or on timing. Like
+# sigint-at, which is for Ctrl-C when a file is hashed.
+#
+# usage: inject-at KIND N SCRIPT [ARGS...]
+#
+# KIND is one of:
+#
+#   eio-hash        hashing the Nth file fails with EIO
+#   bug-hash        hashing the Nth file fails with a bug in the
+#                   script (RuntimeError)
+#   enoent-stat     the Nth os.stat() of a name in the data directory
+#                   fails as if the file had just been deleted
+#   eacces-stat     the same, but with EACCES
+#   eio-entry       the Nth question if an entry of a directory is a
+#                   directory fails with EIO
+#   eio-fsencode    the Nth os.fsencode() fails with EIO and a file
+#                   name, which no command catches itself
+#   enospc-fsync    the Nth os.fsync() fails with ENOSPC, which is
+#                   how a full disk shows when hashes.json.tmp is
+#                   written
+#   sigint-scandir  SIGINT is sent when the Nth directory is read
+#   sigint-replace  SIGINT is sent when the Nth file is renamed over
+#                   another one, which is how hashes.json is saved
+
+import errno
+import hashlib
+import os
+import runpy
+import signal
+import sys
+
+EXIT_USAGE = 64
+EXIT_HOOK_NOT_REACHED = 70
+
+
+def fail_with(exception):
+    def action():
+        raise exception
+
+    return action
+
+
+def send_sigint():
+    os.kill(os.getpid(), signal.SIGINT)
+
+
+# Python itself calls os.stat() with absolute paths, for example to
+# find the translations, and that depends on the machine. Count only
+# the names vrfdir has in the current directory.
+def is_data_name(path):
+    return (isinstance(path, str) and not os.path.isabs(path) and
+            not path.startswith('.vrfdir'))
+
+
+# What os.scandir() gives, but the Nth call of is_dir() of any of the
+# entries fails. The entries which vrfdir skips without asking are not
+# counted, so with one file in the directory the Nth call is for that
+# file whatever the order in the directory is. The counter is a one
+# element list shared with main().
+class FaultyScandir:
+
+    def __init__(self, scandir, counter, n):
+        self.scandir = scandir
+        self.counter = counter
+        self.n = n
+
+    def __enter__(self):
+        self.scandir.__enter__()
+        return self
+
+    def __exit__(self, *args):
+        return self.scandir.__exit__(*args)
+
+    def __iter__(self):
+        for entry in self.scandir:
+            yield FaultyEntry(entry, self.counter, self.n)
+
+    def close(self):
+        self.scandir.close()
+
+
+class FaultyEntry:
+
+    def __init__(self, entry, counter, n):
+        self.entry = entry
+        self.counter = counter
+        self.n = n
+        self.name = entry.name
+        self.path = entry.path
+
+    def is_dir(self, **kwargs):
+        self.counter[0] += 1
+        if self.counter[0] == self.n:
+            raise OSError(errno.EIO, os.strerror(errno.EIO), self.path)
+
+        return self.entry.is_dir(**kwargs)
+
+    def __getattr__(self, name):
+        return getattr(self.entry, name)
+
+
+def always(args):
+    return True
+
+
+# KIND: (module, function, action, counted). The action is called
+# before the function on the Nth call counted(args) is true for. The
+# signal ones do not stop the function itself.
+def kinds():
+    eio = OSError(errno.EIO, os.strerror(errno.EIO))
+    enoent = FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT))
+    enospc = OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
+    eacces = PermissionError(errno.EACCES, os.strerror(errno.EACCES))
+    eio_name = OSError(errno.EIO, os.strerror(errno.EIO), 'some-file')
+
+    return {
+        'eio-hash': (hashlib, 'file_digest', fail_with(eio), always),
+        'bug-hash': (hashlib, 'file_digest',
+                     fail_with(RuntimeError('injected bug')), always),
+        'enoent-stat': (os, 'stat', fail_with(enoent),
+                        lambda args: is_data_name(args[0])),
+        'eacces-stat': (os, 'stat', fail_with(eacces),
+                        lambda args: is_data_name(args[0])),
+        'eio-entry': (os, 'scandir', None, always),
+        'eio-fsencode': (os, 'fsencode', fail_with(eio_name), always),
+        'enospc-fsync': (os, 'fsync', fail_with(enospc), always),
+        'sigint-scandir': (os, 'scandir', send_sigint, always),
+        'sigint-replace': (os, 'replace', send_sigint, always),
+    }
+
+
+def main():
+    available = kinds()
+
+    if len(sys.argv) < 4 or sys.argv[1] not in available:
+        print('usage: inject-at KIND N SCRIPT [ARGS...]', file=sys.stderr)
+        print('KIND: %s' % ' '.join(available), file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+
+    (module, name, action, counted) = available[sys.argv[1]]
+    n = int(sys.argv[2])
+    script = sys.argv[3]
+    sys.argv = sys.argv[3:]
+
+    function = getattr(module, name)
+    count = 0
+    counter = [0]
+
+    def faulty_scandir(*args, **kwargs):
+        return FaultyScandir(function(*args, **kwargs), counter, n)
+
+    def hooked(*args, **kwargs):
+        nonlocal count
+        if counted(args):
+            count += 1
+            if count == n:
+                action()
+        return function(*args, **kwargs)
+
+    setattr(module, name, faulty_scandir if action is None else hooked)
+
+    try:
+        runpy.run_path(script, run_name='__main__')
+    finally:
+        # a hook which never fired would make the test pass for the
+        # wrong reason
+        count = max(count, counter[0])
+        if count < n:
+            print('inject-at: %s called %s.%s only %d time(s), not %d' %
+                  (os.path.basename(script), module.__name__, name, count,
+                   n), file=sys.stderr)
+            os._exit(EXIT_HOOK_NOT_REACHED)
+
+
+if __name__ == "__main__":
+    main()

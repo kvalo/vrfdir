@@ -1,0 +1,29 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that the help of vrfdir and of every command works
+
+set -e
+
+cd "$DATADIR"
+
+# The help text depends on the Python version so it is not compared,
+# only that printing it does not fail.
+"$SRCDIR/vrfdir" --help > /dev/null
+
+for cmd in init add status check list export info scan; do
+    "$SRCDIR/vrfdir" "$cmd" --help > /dev/null
+done
+
+# every command has to be in the list of the commands with a
+# description
+for cmd in init add status check list export info scan; do
+    "$SRCDIR/vrfdir" --help | grep -q "^    $cmd  *[a-z]" ||
+        echo "no help for $cmd"
+done
+
+# the help does not need a repository and must not create one
+if [ -e .vrfdir ]; then
+    echo ".vrfdir exists"
+fi

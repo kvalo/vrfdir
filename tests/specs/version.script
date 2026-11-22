@@ -1,0 +1,24 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that --version prints the version and needs no repository. The
+# version itself is not compared, it changes with every release.
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" --version > version.txt
+echo "exit value: $?"
+
+if grep -Eq '^vrfdir [0-9]+\.[0-9]+\.[0-9]+' version.txt; then
+    echo "version printed"
+else
+    echo "wrong output: $(cat version.txt)"
+fi
+
+if [ -e .vrfdir ]; then
+    echo ".vrfdir exists"
+fi
+
+# cleanup
+rm -f version.txt

@@ -1,0 +1,41 @@
+test space
+
+test horizontal tab
+
+test leading dash
+
+test backslash
+
+test utf-8 character in subdir
+
+ls --escape
+-dash
+back\\slash
+horizontal-tab:\tfoo
+space:\ foo
+utf-8
+
+vrfdir info
+Format:       version 2
+Files:        5
+Total size:   55 B
+Checksums:    5 sha256, 0 md5
+
+Largest files:
+       11 B  -dash
+       11 B  back\slash
+       11 B  horizontal-tab:	foo
+       11 B  space: foo
+       11 B  utf-8/KEVÄTJUHLA
+
+vrfdir list
+sha256:4795a1c2517089e4df569afd77c04e949139cf299c87f012b894fccf91df4594  11           space: foo
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           horizontal-tab:	foo
+sha256:4bfe8d30bc206a0054877e8ccc694e0c6dd0e16e0ea16af59c3a60e72a60f79d  11           -dash
+sha256:9a877ed9e619e950c7ae23b18badc4a76820699d405872811f16f31541ac6983  11           back\slash
+sha256:2bf7319d9df25bab7f177afb2b783c1dd5da1a068a09a7d293fcbdba707c694e  11           utf-8/KEVÄTJUHLA
+
+vrfdir status
+
+vrfdir check
+

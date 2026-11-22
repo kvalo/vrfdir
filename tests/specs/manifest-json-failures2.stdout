@@ -1,0 +1,25 @@
+an empty list
+a list of a number
+a list of null
+an empty object
+trailing text
+a byte order mark
+exit value: 3
+the version is a float
+the version is a string
+the version is null
+the version is negative
+files is null
+the name is empty
+the name has a NUL character
+the entry is null
+the entry is a list
+the checksum is a number
+the checksum is missing
+the size is a string
+the size is a float
+the size is a boolean
+the second entry is broken
+every command stops with the same message
+.vrfdir is a file
+.vrfdir is a dangling symbolic link

@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test Ctrl-C: a real SIGINT is sent when the Nth file is hashed
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# run vrfdir, interrupt it on the Nth file and verify the exit value
+interrupted() {
+    n=$1
+    shift
+    "$SRCDIR/tests/sigint-at" "$n" "$SRCDIR/vrfdir" "$@"
+    retval=$?
+
+    if [ $retval != 130 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+echo dddd > d
+
+echo add interrupted on the third file, the first two are saved
+interrupted 3 add --quiet a b c
+"$SRCDIR/vrfdir" list
+
+echo add can continue from there
+"$SRCDIR/vrfdir" add --quiet c
+"$SRCDIR/vrfdir" list
+
+echo add interrupted on the first file, the progress line is ended
+interrupted 1 add d
+"$SRCDIR/vrfdir" list
+
+echo check interrupted
+interrupted 2 check --quiet
+
+echo check interrupted, the progress line is ended
+interrupted 1 check
+
+echo the hook must be reached
+"$SRCDIR/tests/sigint-at" 9 "$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 70 ]; then
+    echo Wrong exit value: $retval
+fi
+
+echo a corrupted file is not reported after the interrupt
+echo xxxx > c
+interrupted 2 check --quiet
+
+# cleanup
+rm -fr .vrfdir a b c d

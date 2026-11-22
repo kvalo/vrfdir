@@ -1,0 +1,61 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the old name of manifest.json, hashes.json, when both exist,
+# when init finds it, when it is damaged or too new, and when it
+# cannot be removed. manifest-json-compat has the normal conversion.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+echo aaaa > a
+echo bbbb > b
+
+echo init refuses the old name
+mkdir .vrfdir
+echo '[{"version": 0, "files": {}}]' > .vrfdir/hashes.json
+"$SRCDIR/vrfdir" init
+echo "exit value: $?"
+ls .vrfdir
+
+echo
+echo manifest.json is used when both exist
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet a
+echo '[{"version": 0, "files": {}}]' > .vrfdir/hashes.json
+"$SRCDIR/vrfdir" list
+echo the next write removes the old file
+"$SRCDIR/vrfdir" add --quiet b
+ls .vrfdir
+"$SRCDIR/vrfdir" list
+
+echo
+echo the old file is damaged
+rm -fr .vrfdir
+mkdir .vrfdir
+echo '[{"version": 0, "files": ' > .vrfdir/hashes.json
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+
+echo
+echo the old file is of a newer version
+echo '[{"version": 1, "files": {}}]' > .vrfdir/hashes.json
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+
+echo
+echo the old file cannot be removed
+rm -fr .vrfdir
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet a
+mkdir .vrfdir/hashes.json
+"$SRCDIR/vrfdir" add --quiet b
+echo "exit value: $?"
+ls .vrfdir
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a b

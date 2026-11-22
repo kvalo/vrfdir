@@ -1,0 +1,53 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that names which differ only in the case or in the Unicode
+# normalisation form are different files, and that .vrfdir is ignored
+# only in the top directory. Other systems may treat them as the same
+# file, see CASE_INSENSITIVE, but not Linux.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+echo aaaa > a
+echo AAAA > A
+# the same character as one code point and as two
+nfc=$(printf '\xc3\xa4')
+nfd=$(printf 'a\xcc\x88')
+echo nfc > "$nfc"
+echo nfd > "$nfd"
+
+echo add
+"$SRCDIR/vrfdir" add --quiet .
+echo "exit value: $?"
+echo vrfdir list
+# the order of sort depends on the locale, a and A are not the same
+"$SRCDIR/vrfdir" list | LC_ALL=C sort -k 3 | cat -v
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+# Only the .vrfdir in the current directory is the repository. This
+# is not described in the help texts.
+echo .vrfdir in a subdirectory is a normal directory
+mkdir -p sub/.vrfdir
+echo inner > sub/.vrfdir/manifest.json
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+"$SRCDIR/vrfdir" add --quiet sub
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list | grep sub
+"$SRCDIR/vrfdir" scan
+
+# cleanup
+rm -fr .vrfdir a A "$nfc" "$nfd" sub

@@ -1,0 +1,2 @@
+Error: cannot export the checksums: 1 file(s) still have an MD5 checksum. Run 'vrfdir upgrade' first
+Error: cannot export the checksums: 2 file(s) still have an MD5 checksum. Run 'vrfdir upgrade' first

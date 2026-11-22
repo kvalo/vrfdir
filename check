@@ -1,0 +1,14 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+set -e
+
+# Several tests make a file unreadable with chmod, which has no effect
+# on root. They would fail in confusing ways.
+if [ "$(id -u)" = 0 ]; then
+    echo "check: the tests do not work as root, run them as a normal user" >&2
+    exit 1
+fi
+
+cmdspecs "$@" tests/specs

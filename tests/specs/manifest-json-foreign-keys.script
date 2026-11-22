@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the names in manifest.json which cannot be a file added by this
+# vrfdir: outside of the directory, absolute, not normalised and
+# inside .vrfdir. Older versions allowed them. They are differences,
+# vrfdir shows them as conflicts, and check never reads them.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+mkdir .vrfdir d
+echo aaaa > a
+echo bbbb > d/b
+echo cccc > ../outside
+
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 2, "files": {
+"../outside": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 5},
+"/etc/passwd": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 5},
+"./a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"d//b": {"checksum": "sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48", "size": 5},
+".vrfdir/manifest.json": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 5}
+}}]
+JSON
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+# The files are not read. inject-at makes the first file which is
+# hashed fail, and exits with 70 if no file is hashed at all.
+echo no file is hashed
+"$SRCDIR/tests/inject-at" eio-hash 1 "$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a d ../outside

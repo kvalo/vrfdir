@@ -1,0 +1,54 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# init empty directory and run few commands
+
+set -e
+
+
+cd "$DATADIR"
+
+"$SRCDIR/tests/genbackupdata" --quiet --create 10M 1
+
+"$SRCDIR/vrfdir" init
+
+# add everything from current directory
+"$SRCDIR/vrfdir" add --quiet .
+
+"$SRCDIR/vrfdir" list | wc -l
+
+"$SRCDIR/tests/genbackupdata" --quiet --create 1M 2
+
+"$SRCDIR/vrfdir" add --quiet 2
+
+"$SRCDIR/vrfdir" list | wc -l
+
+"$SRCDIR/vrfdir" status
+
+"$SRCDIR/vrfdir" check --quiet
+
+echo 'add directory with a slash character in the end'
+"$SRCDIR/tests/genbackupdata" --quiet --create 1M 3
+"$SRCDIR/vrfdir" add --quiet 3/
+"$SRCDIR/vrfdir" list | wc -l
+"$SRCDIR/vrfdir" status
+
+echo 'add directory with two slash characters in the end'
+"$SRCDIR/tests/genbackupdata" --quiet --create 1M 4
+"$SRCDIR/vrfdir" add --quiet 4//
+"$SRCDIR/vrfdir" list | wc -l
+"$SRCDIR/vrfdir" status
+
+echo 'add file from a directory with two slash characters'
+mkdir 5
+echo foo > 5/foo
+"$SRCDIR/vrfdir" add --quiet 5//foo
+"$SRCDIR/vrfdir" list | wc -l
+"$SRCDIR/vrfdir" status
+
+# test progress meter but direct it to /dev/null
+"$SRCDIR/vrfdir" check > /dev/null
+
+# cleanup
+rm -fr .vrfdir 1 2 3 4 5

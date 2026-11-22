@@ -1,0 +1,24 @@
+Error: the repository .vrfdir/manifest.json is damaged: it is empty
+Error: the repository .vrfdir/manifest.json is damaged: it is not valid JSON (line 1, column 1)
+Error: the repository .vrfdir/manifest.json is damaged: it is not valid JSON (line 2, column 26)
+Error: the repository .vrfdir/manifest.json is damaged: it is not a text file
+Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing
+Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing
+Error: the repository .vrfdir/manifest.json is damaged: invalid version 0
+Error: the repository .vrfdir/manifest.json has format version 3 but this vrfdir knows only version 2, it was written by a newer vrfdir
+Error: the repository .vrfdir/manifest.json is damaged: invalid file name 'bad-\ud800-name'
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum or size of a
+Error: the repository .vrfdir/manifest.json is damaged: the version or the list of the files is missing
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum or size of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum or size of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
+Error: the repository .vrfdir/manifest.json is damaged: invalid version False
+Error: the repository .vrfdir/manifest.json is damaged: it is not valid JSON
+Error: cannot read the repository .vrfdir/manifest.json: Permission denied
+Error: cannot read the repository .vrfdir/manifest.json: Is a directory
+Error: cannot read the repository .vrfdir/manifest.json: No such file or directory

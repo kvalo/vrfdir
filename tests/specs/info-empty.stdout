@@ -1,0 +1,43 @@
+vrfdir info, empty repository
+Format:       version 2
+Files:        0
+Total size:   0 B
+Checksums:    0 sha256, 0 md5
+exit value: 0
+vrfdir list, empty repository
+exit value: 0
+vrfdir export, empty repository
+exit value: 0
+sizes of 12, 13 and 15 digits, the files are not read
+vrfdir info
+Format:       version 2
+Files:        3
+Total size:   113.5 TiB
+Checksums:    3 sha256, 0 md5
+
+Largest files:
+  112.3 TiB  c
+    1.1 TiB  b
+  115.0 GiB  a
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  123456789012 a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  1234567890123 b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  123456789012345 c
+exit value: 0
+vrfdir export
+11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  a
+4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  b
+02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  c
+exit value: 0
+vrfdir info --machine-readable
+version=2
+files=3
+size=124814813691480
+sha256=3
+md5=0
+foreign=0
+largest.1=123456789012345 c
+largest.2=1234567890123 b
+largest.3=123456789012 a
+exit value: 0

@@ -1,0 +1,327 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+import argparse
+import hashlib
+import os
+import re
+import sys
+import time
+from pathlib import Path
+
+# Constants for file sizes and limits
+KIB = 1024
+MIB = 1024 * KIB
+GIB = 1024 * MIB
+MAX_FILE_SIZE = 100 * MIB  # Maximum size for individual files
+SMALL_FILE_MIN_SIZE = 512  # Minimum file size for small total sizes
+# Used to calculate the file size limits. The number of files created is
+# usually about half of this, as the average file size ends up being
+# around twice the target.
+TARGET_FILES_COUNT = 100
+CHUNK_SIZE = MIB  # Files are generated and written in chunks of this size
+
+# The same values as vrfdir has. An error is not 1, that is what a
+# Python stacktrace gives.
+EXIT_ERROR = 3
+EXIT_USAGE = 64
+EXIT_INTERRUPTED = 130
+
+
+# An error whose message is printed to the user as it is
+class GenError(Exception):
+    pass
+
+
+# argparse exits with 2 on a wrong command line
+class GenArgumentParser(argparse.ArgumentParser):
+
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(EXIT_USAGE, f"Error: {message}\n")
+
+
+def seeded_int(min_value, max_value, seed):
+    """Return a deterministic integer from min_value to max_value"""
+    # Use hashlib and not the random module, the output of a hash function
+    # is the same with every Python version
+    digest = hashlib.sha256(seed.encode()).digest()
+    value = int.from_bytes(digest, 'big')
+    return min_value + value % (max_value - min_value + 1)
+
+
+def generate_file_data(file_size, seed):
+    """Generate deterministic file data one chunk at a time"""
+    offset = 0
+    while offset < file_size:
+        chunk_size = min(CHUNK_SIZE, file_size - offset)
+        chunk_seed = f"{seed}_{offset}"
+        yield hashlib.shake_256(chunk_seed.encode()).digest(chunk_size)
+        offset += chunk_size
+
+
+def parse_size(size_str):
+    """Parse size string with optional k/M/G suffix, used as argparse type"""
+    multipliers = {'k': KIB, 'm': MIB, 'g': GIB}
+
+    # int() alone would accept also '1_000', '+5' and ' 5 '
+    match = re.fullmatch(r'([0-9]+)([kmg]?)', size_str, re.IGNORECASE)
+    if match is None:
+        raise argparse.ArgumentTypeError(f"invalid size '{size_str}'")
+
+    try:
+        size = int(match.group(1))
+    except ValueError:
+        # more digits than int() converts
+        raise argparse.ArgumentTypeError(f"invalid size '{size_str}'")
+
+    size *= multipliers.get(match.group(2).lower(), 1)
+
+    if size <= 0:
+        raise argparse.ArgumentTypeError("size must be positive")
+
+    return size
+
+
+def calculate_min_file_size(total_size):
+    """Calculate minimum file size based on total data size for performance"""
+    if total_size >= GIB:
+        return MIB
+
+    if total_size >= 100 * MIB:
+        return 512 * KIB
+
+    if total_size >= 10 * MIB:
+        return 128 * KIB
+
+    if total_size >= MIB:
+        return 64 * KIB
+
+    return KIB
+
+
+def file_size_limits(total_size):
+    """Return the minimum and the maximum file size for the total size"""
+    target_avg_file_size = total_size // TARGET_FILES_COUNT
+
+    min_file_size = calculate_min_file_size(total_size)
+
+    # If the minimum is above the target average file size, allow a
+    # smaller minimum for variation
+    if target_avg_file_size < min_file_size:
+        min_file_size = max(SMALL_FILE_MIN_SIZE, target_avg_file_size // 4)
+
+    # up to 4x the target average
+    max_file_size = max(1, min(MAX_FILE_SIZE, target_avg_file_size * 4))
+
+    # With a tiny total size the maximum is below the minimum
+    min_file_size = min(min_file_size, max_file_size)
+
+    return min_file_size, max_file_size
+
+
+# Why an operating system call failed, for an error message. str() of
+# the exception has also the errno and the file name, which the
+# message tells itself.
+def error_reason(e):
+    return e.strerror or str(e)
+
+
+class Generator:
+    """Creates the files and directories and counts them"""
+
+    def __init__(self, target_path, total_size, quiet):
+        self.target_path = target_path
+        self.total_size = total_size
+        self.quiet = quiet
+
+        # Use size as seed for determinism (not directory path)
+        self.seed = str(total_size)
+
+        self.min_file_size, self.max_file_size = file_size_limits(total_size)
+
+        self.file_count = 0
+        self.dir_count = 0
+        self.bytes_created = 0
+
+    def create_file(self, dirpath, size_seed, data_seed):
+        """Create the next file in dirpath, at most of the remaining size"""
+        remaining = self.total_size - self.bytes_created
+        file_size = min(seeded_int(self.min_file_size, self.max_file_size,
+                                   size_seed), remaining)
+
+        filepath = dirpath / f"file{self.file_count + 1:08d}"
+
+        try:
+            with open(filepath, 'wb') as f:
+                for chunk in generate_file_data(file_size, data_seed):
+                    f.write(chunk)
+        except OSError as e:
+            raise GenError(f"cannot create file {filepath}: "
+                           f"{error_reason(e)}")
+
+        # not inside the try, a failed write to stdout is not a failure
+        # to create the file
+        if not self.quiet:
+            name = filepath.relative_to(self.target_path).as_posix()
+            print(f"Created file {name} ({file_size} bytes)")
+
+        self.bytes_created += file_size
+        self.file_count += 1
+
+    def create_directory(self):
+        """Create the next directory with 0-3 files in it"""
+        number = self.dir_count + 1
+        dirpath = self.target_path / f"{number}"
+
+        # the target directory was empty, so one which exists is an error
+        try:
+            dirpath.mkdir()
+        except OSError as e:
+            raise GenError(f"cannot create directory {dirpath}: "
+                           f"{error_reason(e)}")
+
+        if not self.quiet:
+            print(f"Created directory {dirpath.name}")
+
+        self.dir_count += 1
+
+        files = seeded_int(0, 3, f"{self.seed}_subdir_files_{number}")
+
+        for i in range(files):
+            if self.bytes_created >= self.total_size:
+                break
+
+            self.create_file(dirpath,
+                             f"{self.seed}_subdir_file_size_{number}_{i}",
+                             f"{self.seed}_subdir_file_{number}_{i}")
+
+    def run(self):
+        """Create a mix of files and directories until the total size"""
+        while self.bytes_created < self.total_size:
+            # the numbers of the next file and directory
+            file_number = self.file_count + 1
+            dir_number = self.dir_count + 1
+
+            # A directory is possible only when there are more than twice
+            # as many files as directories. The directories do not count
+            # towards the total size.
+            choice_seed = f"{self.seed}_choice_{file_number}_{dir_number}"
+            if (file_number > dir_number * 2 and
+                    seeded_int(0, 99, choice_seed) < 30):
+                self.create_directory()
+            else:
+                self.create_file(self.target_path,
+                                 f"{self.seed}_file_size_{file_number}",
+                                 f"{self.seed}_file_{file_number}")
+
+
+def create_test_data(target_dir, total_size, quiet=False):
+    """Create the test data and return the Generator which has the counts"""
+    target_path = Path(target_dir)
+
+    # Ensure target directory exists
+    try:
+        target_path.mkdir(parents=True, exist_ok=True)
+    except OSError as e:
+        raise GenError(f"cannot create directory {target_dir}: "
+                       f"{error_reason(e)}")
+
+    # Files left from an earlier run would make the result depend on what
+    # was created before
+    try:
+        not_empty = any(target_path.iterdir())
+    except OSError as e:
+        raise GenError(f"cannot read directory {target_dir}: "
+                       f"{error_reason(e)}")
+
+    if not_empty:
+        raise GenError(f"directory {target_dir} is not empty")
+
+    generator = Generator(target_path, total_size, quiet)
+    generator.run()
+
+    return generator
+
+
+# Python flushes stdout once more when it exits. After a write to it
+# has failed give it something which does not fail, otherwise Python
+# prints its own message and exits with 120.
+def discard_stdout():
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, sys.stdout.fileno())
+
+
+def run():
+    parser = GenArgumentParser(
+        description='Generate deterministic test data for backup testing')
+    parser.add_argument('--create', required=True, type=parse_size,
+                        metavar='SIZE',
+                        help='Size of data to create in bytes. The suffixes '
+                        'k, M and G are powers of 1024 and their case does '
+                        'not matter (e.g., 1k, 2M, 3G)')
+    parser.add_argument('--quiet', action='store_true',
+                        help='Suppress informational output, only show errors')
+    parser.add_argument('directory', help='Target directory for test data')
+
+    args = parser.parse_args()
+
+    # The directory name is printed as the bytes it has, it does not
+    # need to be valid in the encoding of the locale
+    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
+                           errors=sys.getfilesystemencodeerrors())
+
+    total_size = args.create
+
+    if not args.quiet:
+        print(f"Creating {total_size} bytes of test data in {args.directory}")
+
+    start_time = time.monotonic()
+    generator = create_test_data(args.directory, total_size, args.quiet)
+
+    if not args.quiet:
+        elapsed_time = time.monotonic() - start_time
+        print(f"\nTotal: {generator.bytes_created} bytes created in "
+              f"{generator.file_count} files and {generator.dir_count} "
+              f"directories ({elapsed_time:.2f} seconds)")
+
+
+def main():
+    # Python sets these to None when the program is started with
+    # stdout or stderr closed.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
+    # What is not handled elsewhere ends here, so that the exit code is
+    # never the 1 of a Python stacktrace.
+    try:
+        try:
+            run()
+        finally:
+            # here, so that a failure to write the output is noticed
+            sys.stdout.flush()
+    except GenError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(EXIT_ERROR)
+    except KeyboardInterrupt:
+        print("Error: interrupted", file=sys.stderr)
+        sys.exit(EXIT_INTERRUPTED)
+    except BrokenPipeError:
+        # the reader of the output, for example head, has exited
+        discard_stdout()
+        sys.exit(EXIT_ERROR)
+    except OSError as e:
+        # the files are handled where they are created, what gets here
+        # is a failed write to stdout
+        print(f"Error: cannot write the output: {error_reason(e)}",
+              file=sys.stderr)
+        discard_stdout()
+        sys.exit(EXIT_ERROR)
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,55 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the exact content of manifest.json which vrfdir writes. A change
+# in it has to be on purpose, a new vrfdir has to read the old files
+# and the old vrfdir the new ones, see the format version.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+echo init
+"$SRCDIR/vrfdir" init
+cat .vrfdir/manifest.json
+
+echo aaaa > a
+echo bbbb > 'back\slash'
+mkdir dir
+: > dir/empty
+echo cccc > "$(printf 'KEV\xc3\x84T')"
+echo dddd > "$(printf 'iso8859-1: \xc4')"
+echo eeee > "$(printf 'tab:\tname')"
+echo add
+"$SRCDIR/vrfdir" add --quiet a 'back\slash' dir "$(printf 'KEV\xc3\x84T')" \
+    "$(printf 'iso8859-1: \xc4')" "$(printf 'tab:\tname')"
+cat .vrfdir/manifest.json
+
+# json.dumps() has to escape everything, a byte which is not valid
+# UTF-8 is not written as it is either
+echo only ASCII, one line
+if LC_ALL=C grep -q '[^ -~]' .vrfdir/manifest.json; then
+    echo manifest.json has other than printable ASCII
+fi
+echo "lines: $(wc -l < .vrfdir/manifest.json)"
+
+# The old versions wrote the backslash which md5sum prints before the
+# checksum of a name with a backslash. It is removed when the file is
+# loaded and so it is gone when the file is written again.
+echo the backslash before the checksum is removed on the next write
+rm -fr .vrfdir
+mkdir .vrfdir
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 1, "files": {"back\\slash": {"md5sum": "\\4c7a5c6a43c8f3acf66b21e20b2ed2a9", "size": 5}}}]
+JSON
+echo ffff > f
+"$SRCDIR/vrfdir" add --quiet f
+cat .vrfdir/manifest.json
+
+# cleanup
+rm -fr .vrfdir a 'back\slash' dir f "$(printf 'KEV\xc3\x84T')" \
+   "$(printf 'iso8859-1: \xc4')" "$(printf 'tab:\tname')"

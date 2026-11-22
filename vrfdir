@@ -1,0 +1,1813 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+import argparse
+import hashlib
+import heapq
+import itertools
+import logging
+import json
+import os
+import re
+import stat
+import sys
+import time
+
+# global variables
+logger = None
+
+# defines
+VRFDIR_DIRECTORY = '.vrfdir'
+VRFDIR_MANIFEST_JSON = 'manifest.json'
+VRFDIR_MANIFEST_TMP = 'manifest.json.tmp'
+VRFDIR_MANIFEST_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_JSON)
+VRFDIR_MANIFEST_TMP_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_TMP)
+
+# The release of vrfdir, following Semantic Versioning. It has nothing to
+# do with MANIFEST_VERSION. '+git' marks a version which is not
+# released, see CHANGELOG.md.
+VERSION = '0.0.0+git'
+
+MANIFEST_VERSION = 2
+
+# The manifest.json of this version has the MD5 checksum in the 'md5sum'
+# key, without the algorithm. It is still read and converted to
+# MANIFEST_VERSION by the next write.
+MD5_MANIFEST_VERSION = 1
+
+# What the manifest was called before MANIFEST_VERSION 1. It is still
+# read when there is no manifest.json and removed by the next write.
+VRFDIR_LEGACY_PATH = '%s/%s' % (VRFDIR_DIRECTORY, 'hashes.json')
+LEGACY_VERSION = 0
+
+# The algorithm of the checksum of a file is the prefix of the stored
+# checksum: 'sha256:' and the hexadecimal digits. The files of the
+# earlier versions have 'md5:', vrfdir does not add those anymore.
+DEFAULT_ALGORITHM = 'sha256'
+CHECKSUM_RE = re.compile('(md5:[0-9a-f]{32}|sha256:[0-9a-f]{64})')
+
+# The exit codes, the same in every command. Every sys.exit() has to
+# use one of these, and they are described in the help texts below.
+EXIT_DIFFERENCES = 1
+EXIT_CORRUPTION = 2
+EXIT_ERROR = 3
+EXIT_USAGE = 64
+EXIT_INTERRUPTED = 130
+
+# seconds between progress meter updates
+PROGRESS_INTERVAL = 1
+
+# how many times to retry replacing manifest.json on Windows and the
+# seconds to wait in between
+REPLACE_RETRIES = 10
+REPLACE_RETRY_DELAY = 0.1
+
+# how many files 'vrfdir info' lists as the largest, HELP_INFO says it
+LARGEST_FILES = 5
+
+# what a file name cannot have on Windows, see is_native_name()
+WINDOWS_INVALID_CHARS = '\\:<>"|?*'
+WINDOWS_DEVICE_NAMES = frozenset(
+    ['CON', 'PRN', 'AUX', 'NUL', 'CONIN$', 'CONOUT$'] +
+    ['COM%d' % i for i in range(1, 10)] +
+    ['LPT%d' % i for i in range(1, 10)])
+
+# The filesystems of these normally do not care about the case of a
+# file name.
+CASE_INSENSITIVE = sys.platform in ('win32', 'darwin')
+
+
+# Returns the same checksum as the md5sum or the sha256sum command
+# prints, without the algorithm.
+def checksum_file(filename, algorithm):
+    # unbuffered, file_digest() reads the file in big blocks itself
+    with open(filename, 'rb', buffering=0) as f:
+        return hashlib.file_digest(f, algorithm).hexdigest()
+
+
+# The stored checksum 'sha256:abc...' as ('sha256', 'abc...')
+def split_checksum(checksum):
+    (algorithm, digest) = checksum.split(':', 1)
+    return (algorithm, digest)
+
+
+def is_md5_entry(entry):
+    return entry['checksum'].startswith('md5:')
+
+
+def is_vrfdir_path(name):
+    # the same directory can be spelled as .VRFDIR on these
+    if CASE_INSENSITIVE:
+        name = name.casefold()
+
+    return (name == VRFDIR_DIRECTORY or
+            name.startswith(VRFDIR_DIRECTORY + '/'))
+
+
+# Inside vrfdir and in the manifest the separator of a name is always
+# '/', also on Windows, so that the same repository works on every
+# operating system. This converts a path from the command line. On
+# POSIX a backslash is a normal character of a name and is not touched.
+def path_to_name(path):
+    # strip the extra path separators etc
+    name = os.path.normpath(path)
+
+    if os.sep != '/':
+        name = name.replace(os.sep, '/')
+
+    return name
+
+
+# On a case-insensitive filesystem a name from the command line can be
+# spelled differently than the name on the disk, which is what
+# find_files() gives. The same goes for the short 8.3 names of Windows
+# and the Unicode normalisation forms on macOS. Return the name as it
+# is on the disk so that a file has only one name in the repository.
+#
+# listings is a dict the caller keeps, it caches the names in the
+# directories.
+def disk_name(name, listings):
+    if name == '.':
+        return name
+
+    parent = '.'
+
+    for part in name.split('/'):
+        if parent not in listings:
+            try:
+                with os.scandir(parent) as entries:
+                    listings[parent] = {entry.name for entry in entries}
+            except OSError:
+                listings[parent] = set()
+
+        if part not in listings[parent]:
+            try:
+                statinfo = os.lstat(os.path.join(parent, part))
+            except OSError:
+                # does not exist, the caller reports that
+                return name
+
+            for candidate in listings[parent]:
+                try:
+                    if os.path.samestat(
+                            statinfo,
+                            os.lstat(os.path.join(parent, candidate))):
+                        part = candidate
+                        break
+                except OSError:
+                    continue
+
+        if parent == '.':
+            parent = part
+        else:
+            parent = '%s/%s' % (parent, part)
+
+    return parent
+
+
+# A name in the manifest can come from another operating system. Check
+# that it can be the name of a file on this one. On Windows the names
+# which fail here do not give an error but something else than the
+# file: a backslash is a path separator, a colon opens a stream of a
+# file, the dots and the spaces in the end of a name are dropped and
+# the device names open the device.
+def is_native_name(name):
+    if sys.platform != 'win32':
+        return True
+
+    for part in name.split('/'):
+        # not file names, but these are handled elsewhere
+        if part in ('', '.', '..'):
+            continue
+
+        if any(c in WINDOWS_INVALID_CHARS or ord(c) < 0x20 for c in part):
+            return False
+
+        if part.endswith(('.', ' ')):
+            return False
+
+        # 'NUL.txt' is the device as well
+        if part.split('.')[0].rstrip(' ').upper() in WINDOWS_DEVICE_NAMES:
+            return False
+
+    return True
+
+
+# For printing a key of the manifest which is not a name on this
+# system. The bytes which are not valid UTF-8 are shown as '\xNN'.
+def foreign_name(key):
+    return key.encode('utf-8', 'surrogateescape').decode('utf-8',
+                                                         'backslashreplace')
+
+
+# A file name for an error message. The bytes which are not valid in
+# the filesystem encoding are shown as '\xNN', like foreign_name()
+# does, and a newline or a carriage return as '\n' or '\r' so that
+# the name stays on one line.
+def name_for_message(name):
+    name = escape_name(name)[1]
+
+    return os.fsencode(name).decode(sys.getfilesystemencoding(),
+                                    'backslashreplace')
+
+
+# A name with a newline or a carriage return would look like more than
+# one line, so it is escaped the way md5sum and sha256sum do it: the
+# line which has it starts with a backslash (the marker), and the name
+# has \n, \r and \\ for the newline, the carriage return and the
+# backslash. Other names, also the ones with a backslash, are not
+# changed and have no marker. Returns (marker, name).
+def escape_name(name):
+    if '\n' not in name and '\r' not in name:
+        return ('', name)
+
+    name = name.replace('\\', '\\\\').replace('\n', '\\n')
+
+    return ('\\', name.replace('\r', '\\r'))
+
+
+# Print a line of the output which ends with a file name, with the
+# marker of escape_name() at the start of the line.
+def print_named(head, name):
+    (marker, name) = escape_name(name)
+    print(marker + head + name)
+
+
+# Why an operating system call failed, for an error message. str() of
+# the exception has also the errno and the file name, which the
+# message tells itself.
+def error_reason(e):
+    return e.strerror or str(e)
+
+
+# A junction of Windows is a link to a directory, but for Python it
+# is a directory and not a symbolic link. Takes a path or an entry of
+# os.scandir().
+def is_junction(path):
+    if sys.platform != 'win32':
+        return False
+
+    try:
+        return (os.lstat(path).st_reparse_tag ==
+                stat.IO_REPARSE_TAG_MOUNT_POINT)
+    except OSError:
+        return False
+
+
+# On Windows 'C:x' and, depending on the Python version, '/x' are not
+# absolute paths but they are not below the current directory either.
+def is_outside_path(name):
+    return (os.path.isabs(name) or os.path.splitdrive(name)[0] != '' or
+            name.startswith('/') or name == '..' or name.startswith('../'))
+
+
+# In the manifest a file name is its bytes decoded as UTF-8, and the
+# bytes which are not valid UTF-8 as surrogate escapes. Elsewhere the
+# names are strings in the filesystem encoding, which depends on the
+# locale. With these the file is the same in every locale.
+def name_to_json(name):
+    return os.fsencode(name).decode('utf-8', 'surrogateescape')
+
+
+def name_from_json(key):
+    return os.fsdecode(key.encode('utf-8', 'surrogateescape'))
+
+
+# Python decodes the bytes of a file name which are not valid in the
+# filesystem encoding to surrogate escapes, and those cannot be encoded
+# to UTF-8.
+def is_valid_name(name):
+    try:
+        name.encode('utf-8')
+    except UnicodeEncodeError:
+        return False
+
+    return True
+
+
+def bytes2human(val):
+    units = ['B', 'KiB', 'MiB', 'GiB', 'TiB', 'PiB']
+
+    unit = units.pop(0)
+    while val >= 1024 and units:
+        val = val / 1024
+        unit = units.pop(0)
+
+    if unit == 'B':
+        return '%d B' % (val)
+
+    return '%.1f %s' % (val, unit)
+
+
+# M:SS, or H:MM:SS from one hour on
+def seconds2human(secs):
+    secs = int(secs)
+    (minutes, secs) = divmod(secs, 60)
+    (hours, minutes) = divmod(minutes, 60)
+
+    if hours > 0:
+        return '%d:%02d:%02d' % (hours, minutes, secs)
+
+    return '%d:%02d' % (minutes, secs)
+
+
+# On Windows a file cannot be replaced while another program has it
+# open, and virus scanners and indexers open every file which has just
+# been written. They are done quickly, so try again a few times.
+def replace_file(src, dst):
+    retries = REPLACE_RETRIES if sys.platform == 'win32' else 0
+
+    while True:
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            if retries == 0:
+                raise
+
+        retries -= 1
+        time.sleep(REPLACE_RETRY_DELAY)
+
+
+class ProgressMeter:
+
+    # Print the progress, at most once in PROGRESS_INTERVAL seconds.
+    # With done set the meter is always printed and the line is ended.
+    # unread is the part of size which was skipped because the file
+    # could not be read, it is not counted for the speed.
+    def update(self, files, files_total, size, size_total, done=False,
+               unread=0):
+        if self.quiet:
+            return
+
+        if size_total == 0:
+            return
+
+        now = time.monotonic()
+        if (not done and self.updated is not None and
+                now - self.updated < PROGRESS_INTERVAL):
+            return
+
+        self.updated = now
+
+        if self.started is None:
+            self.started = now
+
+        details = '%d/%d files, %s of %s' % (
+            files, files_total, bytes2human(size), bytes2human(size_total))
+
+        # nothing is known about the speed before some data is read
+        elapsed = now - self.started
+        read = size - unread
+        if read > 0 and elapsed > 0:
+            speed = read / elapsed
+            details += ', %s/s' % (bytes2human(speed))
+
+            if done:
+                details += ', %s' % (seconds2human(elapsed))
+            else:
+                left = (size_total - size) / speed
+                details += ', %s left' % (seconds2human(left))
+
+        line = '%s: %d%% (%s)' % (
+            self.title, (float(size) / size_total) * 100, details)
+
+        # overwrite what is left from a longer previous line
+        padding = ' ' * (self.width - len(line))
+        self.width = len(line)
+
+        if done:
+            print('\r%s%s' % (line, padding))
+            self.width = 0
+        else:
+            print('\r%s%s' % (line, padding), end=' ')
+
+        sys.stdout.flush()
+
+    # End an unfinished meter line. To be called before printing
+    # anything else, the next update starts a new line.
+    def interrupt(self):
+        if self.width == 0:
+            return
+
+        print()
+        sys.stdout.flush()
+        self.width = 0
+
+    def __init__(self, title, quiet):
+        self.title = title
+        self.quiet = quiet
+        self.updated = None
+        self.started = None
+        self.width = 0
+
+
+# The message of this is printed to the user as it is.
+class VrfdirError(Exception):
+    pass
+
+
+# the repository file exists but its content cannot be used
+def damaged_error(reason, path=VRFDIR_MANIFEST_PATH):
+    return VrfdirError('the repository %s is damaged: %s' % (path, reason))
+
+
+class VrfdirRepo:
+
+    def load_json(self, buf):
+        if buf.strip() == '':
+            raise damaged_error('it is empty', self.path)
+
+        try:
+            j = json.loads(buf)
+        except json.JSONDecodeError as e:
+            raise damaged_error('it is not valid JSON (line %d, column %d)' %
+                                (e.lineno, e.colno), self.path)
+        except (ValueError, RecursionError):
+            raise damaged_error('it is not valid JSON', self.path)
+
+        try:
+            a = j[0]
+
+            self.version = a['version']
+            fi = a['files']
+        except (LookupError, TypeError):
+            fi = None
+
+        if not isinstance(fi, dict):
+            raise damaged_error('the version or the list of the files is '
+                                'missing', self.path)
+
+        # bool is an int in Python and 0.0 == 0, those are not versions
+        if type(self.version) is not int or self.version < 0:
+            raise damaged_error('invalid version %a' % (self.version,),
+                                self.path)
+
+        if self.legacy:
+            known = LEGACY_VERSION
+        else:
+            known = MANIFEST_VERSION
+
+        if self.version > known:
+            raise VrfdirError('the repository %s has format version %d but '
+                              'this vrfdir knows only version %d, it was '
+                              'written by a newer vrfdir' %
+                              (self.path, self.version, known))
+
+        # the manifest.json of MD5_MANIFEST_VERSION is read as well
+        if self.version < MD5_MANIFEST_VERSION and not self.legacy:
+            raise damaged_error('invalid version %d' % self.version,
+                                self.path)
+
+        # the entries have the MD5 checksum in 'md5sum'
+        md5_format = self.version < MANIFEST_VERSION
+
+        for key in fi:
+            foreign = False
+
+            try:
+                name = name_from_json(key)
+            except UnicodeEncodeError:
+                name = None
+            except UnicodeDecodeError:
+                # On Windows the filesystem encoding is strict, the
+                # name was added on a system where a name is bytes
+                # and it is not valid UTF-8.
+                name = key
+                foreign = True
+
+            if not name or '\0' in name:
+                raise damaged_error('invalid file name %a' % key, self.path)
+
+            # a broken entry would fail later in the middle of a command
+            try:
+                checksum = fi[key]['md5sum' if md5_format else 'checksum']
+                size = fi[key]['size']
+            except (LookupError, TypeError):
+                checksum = None
+                size = None
+
+            # bool is an int in Python
+            if (not isinstance(checksum, str) or type(size) is not int or
+                    size < 0):
+                raise damaged_error('invalid checksum or size of %s' %
+                                    foreign_name(key), self.path)
+
+            if md5_format:
+                # Older versions stored the backslash md5sum prints
+                # before the checksum of a file with a backslash or a
+                # newline in its name.
+                checksum = 'md5:' + checksum.lstrip('\\')
+
+                # the same entry with the new key, the other keys stay
+                entry = {'checksum': checksum}
+                entry.update((k, v) for (k, v) in fi[key].items()
+                             if k != 'md5sum')
+                fi[key] = entry
+
+            if not CHECKSUM_RE.fullmatch(checksum):
+                raise damaged_error('invalid checksum of %s' %
+                                    foreign_name(key), self.path)
+
+            # A file with this name cannot exist on this system. Keep
+            # the entry as it is, the repository can still be used
+            # on the system where the file was added.
+            if foreign or not is_native_name(name):
+                self.foreign[key] = fi[key]
+            else:
+                self.files[name] = fi[key]
+
+    def dump_json(self):
+        a = {}
+
+        a['version'] = self.version
+
+        fi = {}
+        for name in self.files:
+            fi[name_to_json(name)] = self.files[name]
+
+        fi.update(self.foreign)
+
+        a['files'] = fi
+
+        # This has to write only ASCII (ensure_ascii, the default), the
+        # surrogate escapes in the names cannot be written as UTF-8.
+        buf = json.dumps([a])
+        buf = buf + '\n'
+        return buf
+
+    def add_file(self, name):
+        statinfo = os.stat(name)
+
+        digest = checksum_file(name, DEFAULT_ALGORITHM)
+        self.files[name] = {'checksum': '%s:%s' % (DEFAULT_ALGORITHM, digest),
+                            'size': statinfo.st_size}
+
+        self.stats['Files'] = self.stats['Files'] + 1
+        self.stats['Size'] = self.stats['Size'] + statinfo.st_size
+
+    # Find all files below the directory. Symbolic links to files are
+    # followed but links to directories, including the junctions of
+    # Windows, are not. Everything which is not a regular file,
+    # including a dangling symbolic link, is ignored.
+    #
+    # What cannot be read is appended to the unreadable list as
+    # (name, error message). The list is complete only after all the
+    # files have been taken from the generator. The caller has to
+    # report them, the files below those names are not found.
+    @staticmethod
+    def find_files(directory, unreadable):
+        dirs = [directory]
+
+        while dirs:
+            dirpath = dirs.pop()
+
+            try:
+                entries = os.scandir(dirpath)
+            except OSError as e:
+                unreadable.append(
+                    (dirpath, 'cannot read the directory %s: %s' %
+                     (name_for_message(dirpath), error_reason(e))))
+                continue
+
+            with entries:
+                for entry in entries:
+                    if dirpath == '.':
+                        fullname = entry.name
+                    else:
+                        fullname = '%s/%s' % (dirpath, entry.name)
+
+                    # ignore .vrfdir directory
+                    if is_vrfdir_path(fullname):
+                        continue
+
+                    try:
+                        if entry.is_dir(follow_symlinks=False):
+                            if not is_junction(entry):
+                                dirs.append(fullname)
+                        elif entry.is_file():
+                            yield fullname
+                    except OSError as e:
+                        unreadable.append(
+                            (fullname, 'cannot read %s: %s' %
+                             (name_for_message(fullname), error_reason(e))))
+
+    # If path is a directory, add everything within the dir. If it's a
+    # file, add just that.
+    def add_paths(self, paths, progress):
+        # a dict so that a file given twice is added only once
+        add_list = {}
+
+        # for disk_name()
+        listings = {}
+
+        errors = 0
+        unreadable = []
+
+        def refuse(name, reason):
+            return VrfdirError('cannot add %s: %s' %
+                               (name_for_message(name), reason))
+
+        for name in paths:
+            # normpath() would make this '.', which adds everything
+            if name == '':
+                raise refuse("''", 'empty file name')
+
+            name = path_to_name(name)
+
+            if is_outside_path(name):
+                raise refuse(name, 'it is outside of the current directory')
+
+            if not is_native_name(name):
+                raise refuse(name, 'it is not a valid file name on this '
+                             'system')
+
+            if CASE_INSENSITIVE:
+                name = disk_name(name, listings)
+
+            if is_vrfdir_path(name):
+                raise refuse(name, 'it is inside %s, the directory of vrfdir '
+                             'itself' % VRFDIR_DIRECTORY)
+
+            # not os.path.isfile() and the like, they hide why a path
+            # cannot be accessed
+            try:
+                mode = os.lstat(name).st_mode
+            except FileNotFoundError:
+                raise refuse(name, 'it does not exist')
+            except OSError as e:
+                raise refuse(name, error_reason(e))
+
+            if stat.S_ISLNK(mode) or is_junction(name):
+                # ignore symlinks
+                continue
+
+            if stat.S_ISREG(mode):
+                found = [name]
+            elif stat.S_ISDIR(mode):
+                # walk through the directory and add all unknown files
+                found = self.find_files(name, unreadable)
+            else:
+                raise refuse(name, 'it is not a file or a directory')
+
+            for fullname in found:
+                if fullname in self.files or fullname in add_list:
+                    continue
+
+                # the file can disappear after it was found
+                try:
+                    add_list[fullname] = os.stat(fullname).st_size
+                except OSError as e:
+                    logger.error('cannot add %s: %s' %
+                                 (name_for_message(fullname),
+                                  error_reason(e)))
+                    errors += 1
+
+        # the rest of the files are still added
+        for (name, message) in unreadable:
+            logger.error(message)
+            errors += 1
+
+        files_added = 0
+        files_total = len(add_list)
+        bytes_added = 0
+        bytes_total = sum(add_list.values())
+        for name in add_list:
+            progress.update(files_added, files_total, bytes_added,
+                            bytes_total)
+
+            # a file which cannot be added must not prevent adding the
+            # rest of them
+            try:
+                self.add_file(name)
+            except OSError as e:
+                progress.interrupt()
+                logger.error('cannot add %s: %s' %
+                             (name_for_message(name), error_reason(e)))
+                errors += 1
+                continue
+
+            files_added += 1
+            bytes_added += self.files[name]['size']
+
+        progress.update(files_added, files_total, bytes_added, bytes_total,
+                        done=True)
+
+        return errors
+
+    # Compare the files below the directory with the repository. Only
+    # the names and the sizes, does NOT check the checksums!
+    #
+    # unreadable is the list find_files() gives. It is not known if
+    # the added files below those names exist, so they are in none of
+    # the other lists.
+    def walk_repository(self, directory):
+        deleted = []
+        conflicted = []
+        stats_different = []
+        ok = []
+        unknown = []
+        unreadable = []
+
+        # walk through the directory and try find files which are not added
+        walk_list = dict.fromkeys(self.find_files(directory, unreadable))
+
+        # copy the dict (never modify the list/dict you are iterating!)
+        unknown = dict(walk_list)
+
+        def is_hidden(fullname):
+            for (name, message) in unreadable:
+                if (name == '.' or fullname == name or
+                        fullname.startswith(name + '/')):
+                    return True
+
+            return False
+
+        for fullname in self.files:
+            if fullname not in walk_list:
+                if is_hidden(fullname):
+                    continue
+                elif os.path.exists(fullname):
+                    # there's a conflict, it's not a file
+                    conflicted.append(fullname)
+                    continue
+                else:
+                    # the file does not exist anymore
+                    deleted.append(fullname)
+                    continue
+
+            # the file exists
+            unknown.pop(fullname)
+
+            # the file can disappear after it was found
+            try:
+                statinfo = os.stat(fullname)
+            except FileNotFoundError:
+                deleted.append(fullname)
+                continue
+            except OSError as e:
+                unreadable.append(
+                    (fullname, 'cannot read %s: %s' %
+                     (name_for_message(fullname), error_reason(e))))
+                continue
+
+            if statinfo.st_size != self.files[fullname]['size']:
+                # size difference
+                stats_different.append(fullname)
+                continue
+
+            # the file looks to be ok (but the checksum is not checked!)
+            ok.append(fullname)
+
+        # these cannot exist here
+        for key in self.foreign:
+            deleted.append(foreign_name(key))
+
+        # unknown now contains a list of files which are not in self.files
+
+        return (ok, stats_different, conflicted, deleted, list(unknown.keys()),
+                unreadable)
+
+    # Checks that all file exist and meta data matches. Does NOT check
+    # the checksums!
+    def verify_list(self):
+        return self.walk_repository('.')
+
+    # Returns the number of added files which have changed and the
+    # unreadable list of find_files(). Files which are not added are
+    # not errors.
+    def verify(self):
+        (ok, stats_different, conflicted, deleted, unknown,
+         unreadable) = self.verify_list()
+        errors = len(stats_different) + len(conflicted) + len(deleted)
+        return (errors, unreadable)
+
+    # Check the checksum of each file in repo. Returns the number of the files
+    # with a wrong checksum and the number of the files which could
+    # not be read.
+    def check(self, progress):
+        modified = 0
+        failed = 0
+
+        files_checked = 0
+        bytes_checked = 0
+        bytes_unread = 0
+        for name in self.files:
+            progress.update(files_checked, self.stats['Files'],
+                            bytes_checked, self.stats['Size'],
+                            unread=bytes_unread)
+            try:
+                (algorithm, expected) = split_checksum(
+                    self.files[name]['checksum'])
+                if checksum_file(name, algorithm) != expected:
+                    # modified file
+                    progress.interrupt()
+                    print_named('M ', name)
+                    modified = modified + 1
+            except OSError as e:
+                progress.interrupt()
+                logger.error('cannot read %s: %s' %
+                             (name_for_message(name), error_reason(e)))
+                failed = failed + 1
+                bytes_unread = bytes_unread + self.files[name]['size']
+
+            files_checked = files_checked + 1
+            bytes_checked = bytes_checked + self.files[name]['size']
+
+        progress.update(files_checked, self.stats['Files'],
+                        bytes_checked, self.stats['Size'], done=True,
+                        unread=bytes_unread)
+
+        return (modified, failed)
+
+    # Replace the MD5 checksum of the files in names, which have one,
+    # with the SHA-256 checksum. The checksums cannot be converted, the
+    # file is read again, and the file may be corrupted already. So the
+    # SHA-256 is calculated first and the entry is changed only if the
+    # MD5 of the same open file, calculated after it, is the stored
+    # one. A file which changes in between is not upgraded.
+    #
+    # The caller gives only the names of the files which the walk of
+    # the directory found, like check() does, never a name from the
+    # manifest which is outside of the directory.
+    #
+    # Returns the number of the upgraded files, the number of the files
+    # which do not match and the number of the files which could not be
+    # read. A file which does not match, or cannot be read, keeps its
+    # MD5 checksum.
+    def upgrade(self, names, progress):
+        upgraded = 0
+        modified = 0
+        failed = 0
+
+        size_total = sum(self.files[name]['size'] for name in names)
+
+        files_checked = 0
+        bytes_checked = 0
+        bytes_unread = 0
+        for name in names:
+            progress.update(files_checked, len(names), bytes_checked,
+                            size_total, unread=bytes_unread)
+            entry = self.files[name]
+            try:
+                with open(name, 'rb', buffering=0) as f:
+                    sha256 = hashlib.file_digest(f, 'sha256').hexdigest()
+                    f.seek(0)
+                    md5 = hashlib.file_digest(f, 'md5').hexdigest()
+                    size = os.fstat(f.fileno()).st_size
+
+                if size != entry['size'] or md5 != split_checksum(
+                        entry['checksum'])[1]:
+                    progress.interrupt()
+                    print_named('M ', name)
+                    modified = modified + 1
+                else:
+                    entry['checksum'] = 'sha256:' + sha256
+                    upgraded = upgraded + 1
+            except OSError as e:
+                progress.interrupt()
+                logger.error('cannot read %s: %s' %
+                             (name_for_message(name), error_reason(e)))
+                failed = failed + 1
+                bytes_unread = bytes_unread + entry['size']
+
+            files_checked = files_checked + 1
+            bytes_checked = bytes_checked + entry['size']
+
+        progress.update(files_checked, len(names), bytes_checked,
+                        size_total, done=True, unread=bytes_unread)
+
+        return (upgraded, modified, failed)
+
+    def update_stats(self):
+        stats = {}
+
+        stats['Files'] = len(self.files) + len(self.foreign)
+
+        total = 0
+        for name in self.files:
+            total = total + self.files[name]['size']
+
+        for key in self.foreign:
+            total = total + self.foreign[key]['size']
+
+        stats['Size'] = total
+
+        stats['FileVersion'] = self.version
+
+        stats['Foreign'] = len(self.foreign)
+
+        self.stats = stats
+
+    def get_stats(self):
+        return self.stats
+
+    # What 'vrfdir info' shows in addition to get_stats(). It is not in
+    # the stats as it goes through all the entries, which only info
+    # needs. The foreign names are not names on this system, so only
+    # the native files are in the largest list.
+    def get_details(self):
+        entries = itertools.chain(self.files.values(),
+                                  self.foreign.values())
+        md5 = sum(1 for entry in entries if is_md5_entry(entry))
+
+        largest = heapq.nsmallest(
+            LARGEST_FILES, self.files,
+            key=lambda name: (-self.files[name]['size'], name))
+
+        return {'Md5': md5,
+                'Largest': [(self.files[n]['size'], n) for n in largest]}
+
+    # All entries of the manifest as (name, entry), also the ones whose
+    # file cannot exist on this system.
+    def entries(self):
+        for name in self.files:
+            yield (name, self.files[name])
+
+        for key in self.foreign:
+            yield (foreign_name(key), self.foreign[key])
+
+    @staticmethod
+    def open():
+        filename = VRFDIR_MANIFEST_PATH
+        legacy = False
+
+        try:
+            f = open(filename, 'r', encoding='utf-8')
+        except FileNotFoundError:
+            # a repository from before the rename
+            filename = VRFDIR_LEGACY_PATH
+            legacy = True
+            f = open(filename, 'r', encoding='utf-8')
+
+        try:
+            with f:
+                buf = f.read()
+        except UnicodeDecodeError:
+            raise damaged_error('it is not a text file', filename)
+
+        logger.debug('read from %s: %s', filename, buf)
+
+        # The temporary file of write() is left behind only if vrfdir
+        # was killed in the middle of a write. The manifest is still
+        # the complete previous version. Don't remove the file here,
+        # it can also belong to another vrfdir which is writing right
+        # now. The next write replaces it.
+        tmpname = VRFDIR_MANIFEST_TMP_PATH
+        if os.path.lexists(tmpname):
+            logger.warning('%s exists: an earlier vrfdir was interrupted '
+                           'while saving and the files it added may be '
+                           'missing. Run \'vrfdir add\' again' % tmpname)
+
+        return VrfdirRepo(buf, legacy)
+
+    def write(self):
+        filename = VRFDIR_MANIFEST_PATH
+        tmpname = VRFDIR_MANIFEST_TMP_PATH
+
+        # an old repository is converted here
+        self.version = MANIFEST_VERSION
+
+        buf = self.dump_json()
+        logger.debug('writing to %s: %s', filename, buf)
+
+        # Write to a temporary file first and rename it over the old
+        # one, so that an interrupted write never leaves a truncated
+        # manifest.json behind.
+        try:
+            # no '\r\n' on Windows, the file is the same everywhere
+            with open(tmpname, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(buf)
+                f.flush()
+                os.fsync(f.fileno())
+
+            replace_file(tmpname, filename)
+        except BaseException:
+            # don't leave a partial temporary file behind
+            try:
+                os.unlink(tmpname)
+            except OSError:
+                pass
+
+            raise
+
+        # Only after the new file is in place, so that there is always
+        # a complete repository. manifest.json is read first, so a
+        # leftover old file does no harm and the next write retries.
+        if os.path.lexists(VRFDIR_LEGACY_PATH):
+            try:
+                os.unlink(VRFDIR_LEGACY_PATH)
+            except OSError as e:
+                raise VrfdirError('the repository is saved in %s but '
+                                  'cannot remove the old file %s: %s. '
+                                  'Remove it by hand' %
+                                  (VRFDIR_MANIFEST_PATH, VRFDIR_LEGACY_PATH,
+                                   error_reason(e)))
+
+    def __repr__(self):
+        return 'VrfdirRepo(version=%d): %s' % (self.version, repr(self.files))
+
+    # legacy is set when buf is from the old hashes.json
+    def __init__(self, buf=None, legacy=False):
+        # these have to be always set
+        self.version = MANIFEST_VERSION
+        self.files = {}
+        self.legacy = legacy
+        self.path = VRFDIR_LEGACY_PATH if legacy else VRFDIR_MANIFEST_PATH
+
+        # The entries of the manifest whose name cannot be the name of
+        # a file on this system, see is_native_name(). The keys are
+        # the keys of the manifest.
+        self.foreign = {}
+
+        # read the json content, can overwrite fields above
+        if buf is not None:
+            self.load_json(buf)
+
+        self.update_stats()
+
+
+def open_repo():
+    try:
+        return VrfdirRepo.open()
+    except VrfdirError as e:
+        logger.error('%s' % e)
+    except OSError as e:
+        # the most common mistake, tell what to do
+        if (isinstance(e, FileNotFoundError) and
+                not os.path.lexists(VRFDIR_DIRECTORY)):
+            logger.error('no repository in this directory. Run \'vrfdir '
+                         'init\' to create one, or change to the directory '
+                         'which has %s' % VRFDIR_DIRECTORY)
+        else:
+            logger.error('cannot read the repository %s: %s' %
+                         (VRFDIR_MANIFEST_PATH, error_reason(e)))
+
+    sys.exit(EXIT_ERROR)
+
+
+# note is added to the error message, to tell what was lost
+def write_repo(repo, note=None):
+    try:
+        repo.write()
+    except OSError as e:
+        message = 'cannot save the repository %s: %s' % (VRFDIR_MANIFEST_PATH,
+                                                         error_reason(e))
+        if note is not None:
+            message = '%s, %s' % (message, note)
+
+        logger.error(message)
+        sys.exit(EXIT_ERROR)
+    except VrfdirError as e:
+        logger.error('%s' % e)
+        sys.exit(EXIT_ERROR)
+
+
+def cmd_init(args):
+    logger.debug('cmd init %s' % args)
+
+    if not os.path.isdir(VRFDIR_DIRECTORY):
+        # also a dangling symbolic link
+        if os.path.lexists(VRFDIR_DIRECTORY):
+            logger.error('cannot create the repository: %s exists and is '
+                         'not a directory' % VRFDIR_DIRECTORY)
+            sys.exit(EXIT_ERROR)
+
+        try:
+            os.makedirs(VRFDIR_DIRECTORY)
+        except OSError as e:
+            logger.error('cannot create the directory %s: %s' %
+                         (VRFDIR_DIRECTORY, error_reason(e)))
+            sys.exit(EXIT_ERROR)
+
+    for path in (VRFDIR_MANIFEST_PATH, VRFDIR_LEGACY_PATH):
+        if os.path.lexists(path):
+            logger.error('a repository already exists in this directory, '
+                         'not overwriting %s' % path)
+            sys.exit(EXIT_ERROR)
+
+    sf = VrfdirRepo()
+    write_repo(sf)
+
+
+def cmd_status(args):
+    logger.debug('cmd status %s' % args)
+
+    repo = open_repo()
+
+    result = {}
+
+    (ok, stats_different, conflicted, deleted, unknown,
+     unreadable) = repo.verify_list()
+
+    for fullname in stats_different:
+        result[fullname] = 'S'
+
+    for fullname in conflicted:
+        result[fullname] = 'C'
+
+    for fullname in deleted:
+        result[fullname] = 'D'
+
+    for fullname in unknown:
+        result[fullname] = '?'
+
+    # sort by the bytes so that the order does not depend on the locale
+    for fullname in sorted(result, key=os.fsencode):
+        print_named('%s ' % result[fullname], fullname)
+
+    # the error is the more important one to tell, the differences
+    # above are not all of them
+    if unreadable:
+        for (name, message) in unreadable:
+            logger.error(message)
+
+        sys.exit(EXIT_ERROR)
+
+    if len(result) > 0:
+        sys.exit(EXIT_DIFFERENCES)
+
+
+def cmd_add(args):
+    logger.debug('cmd add %s' % args)
+
+    repo = open_repo()
+
+    progress = ProgressMeter('Adding files', args.quiet)
+    errors = 0
+    interrupted = False
+
+    try:
+        errors = repo.add_paths(args.files, progress)
+    except VrfdirError as e:
+        logger.error('%s' % e)
+        sys.exit(EXIT_ERROR)
+    except KeyboardInterrupt:
+        progress.interrupt()
+        interrupted = True
+
+    logger.debug('%r', repo)
+
+    # write also after a failure so that the files hashed so far are
+    # not lost
+    write_repo(repo, 'the added files were not saved')
+
+    if interrupted:
+        logger.error('interrupted, the files added so far were saved')
+        sys.exit(EXIT_INTERRUPTED)
+
+    if errors > 0:
+        sys.exit(EXIT_ERROR)
+
+
+def cmd_list(args):
+    logger.debug('cmd list %s' % args)
+
+    repo = open_repo()
+
+    for (name, entry) in repo.entries():
+        print_named('%s  %-12d ' % (entry['checksum'], entry['size']), name)
+
+
+def cmd_export(args):
+    logger.debug('cmd export %s' % args)
+
+    repo = open_repo()
+
+    # sha256sum -c cannot verify an MD5 checksum
+    md5_files = sum(1 for (name, entry) in repo.entries()
+                    if is_md5_entry(entry))
+    if md5_files > 0:
+        logger.error('cannot export the checksums: %d file(s) still have '
+                     'an MD5 checksum. Run \'vrfdir upgrade\' first' %
+                     md5_files)
+        sys.exit(EXIT_ERROR)
+
+    for (name, entry) in repo.entries():
+        print_named('%s  ' % split_checksum(entry['checksum'])[1], name)
+
+
+def cmd_scan(args):
+    logger.debug('cmd scan %s' % args)
+
+    files = 0
+    unreadable = []
+
+    # walk through the current directory and try find files with invalid
+    # file names
+    for fullname in sorted(VrfdirRepo.find_files('.', unreadable),
+                           key=os.fsencode):
+        files += 1
+
+        if not is_valid_name(fullname):
+            print_named('E ', fullname)
+
+    print('%d files' % (files))
+
+    if unreadable:
+        for (name, message) in unreadable:
+            logger.error(message)
+
+        sys.exit(EXIT_ERROR)
+
+
+def cmd_check(args):
+    logger.debug('cmd check %s' % args)
+
+    repo = open_repo()
+
+    (errors, unreadable) = repo.verify()
+
+    # without these it is not known if all the added files exist
+    if unreadable:
+        for (name, message) in unreadable:
+            logger.error(message)
+
+        print('checksums not checked')
+        sys.exit(EXIT_ERROR)
+
+    if errors > 0:
+        print('%d file(s) deleted or changed, checksums not checked. Run '
+              '\'vrfdir status\' to see them' % (errors))
+        sys.exit(EXIT_DIFFERENCES)
+
+    progress = ProgressMeter('Checking', args.quiet)
+
+    try:
+        (modified, failed) = repo.check(progress)
+    except KeyboardInterrupt:
+        # main() handles this
+        progress.interrupt()
+        raise
+
+    if modified > 0:
+        print('%d file(s) modified' % (modified))
+
+    if failed > 0:
+        print('%d file(s) could not be checked' % (failed))
+
+    # corruption is the more important one to tell
+    if modified > 0:
+        sys.exit(EXIT_CORRUPTION)
+
+    if failed > 0:
+        sys.exit(EXIT_ERROR)
+
+
+def cmd_upgrade(args):
+    logger.debug('cmd upgrade %s' % args)
+
+    repo = open_repo()
+
+    # Only the files which exist with the same size are read, as in
+    # check. The others are told, but they do not stop the rest.
+    (ok, stats_different, conflicted, deleted, unknown,
+     unreadable) = repo.verify_list()
+
+    for (name, message) in unreadable:
+        logger.error(message)
+
+    names = [name for name in ok if is_md5_entry(repo.files[name])]
+    md5_files = sum(1 for name in repo.files
+                    if is_md5_entry(repo.files[name]))
+
+    # The files below a directory which cannot be read are in none of
+    # the lists, that is already an error of its own.
+    skipped = sum(1 for name in stats_different + conflicted + deleted
+                  if name in repo.files and is_md5_entry(repo.files[name]))
+
+    # these cannot be read here, they stay as they are
+    foreign = sum(1 for key in repo.foreign
+                  if is_md5_entry(repo.foreign[key]))
+
+    progress = ProgressMeter('Upgrading', args.quiet)
+    interrupted = False
+    upgraded = modified = failed = 0
+
+    try:
+        (upgraded, modified, failed) = repo.upgrade(names, progress)
+    except KeyboardInterrupt:
+        progress.interrupt()
+        interrupted = True
+
+        # upgrade() has no result then, the entries tell what was done
+        upgraded = md5_files - sum(1 for name in repo.files
+                                   if is_md5_entry(repo.files[name]))
+
+    # A repository of an older format is converted by the write, also
+    # when no checksum had to be replaced.
+    converted = ((repo.legacy or repo.version != MANIFEST_VERSION) and
+                 not (interrupted and upgraded == 0))
+
+    # write also after a failure so that the files upgraded so far are
+    # not lost
+    if upgraded > 0 or converted:
+        write_repo(repo, 'the upgraded repository was not saved')
+
+    if interrupted:
+        if upgraded > 0:
+            logger.error('interrupted, the files upgraded so far were saved')
+        else:
+            logger.error('interrupted')
+
+        sys.exit(EXIT_INTERRUPTED)
+
+    if converted:
+        print('repository converted to the latest format (version %d)' %
+              (MANIFEST_VERSION))
+
+    if upgraded > 0:
+        print('%d file(s) upgraded to SHA-256' % (upgraded))
+
+    if modified > 0:
+        print('%d file(s) modified, they still have the MD5 checksum' %
+              (modified))
+
+    if failed > 0:
+        print('%d file(s) could not be upgraded' % (failed))
+
+    if skipped > 0:
+        print('%d file(s) not upgraded because they are deleted or '
+              'changed. Run \'vrfdir status\' to see them' % (skipped))
+
+    if foreign > 0:
+        logger.warning('%d file(s) cannot exist on this system and still '
+                       'have the MD5 checksum. Run \'vrfdir upgrade\' on '
+                       'the system where they were added' % foreign)
+
+    # corruption is the more important one to tell
+    if modified > 0:
+        sys.exit(EXIT_CORRUPTION)
+
+    if failed > 0 or unreadable:
+        sys.exit(EXIT_ERROR)
+
+    if skipped > 0:
+        sys.exit(EXIT_DIFFERENCES)
+
+
+def cmd_info(args):
+    logger.debug('cmd info %s' % args)
+
+    repo = open_repo()
+
+    stats = dict(repo.get_stats(), **repo.get_details())
+    sha256 = stats['Files'] - stats['Md5']
+
+    if args.machine_readable:
+        print('version=%d' % stats['FileVersion'])
+        print('files=%d' % stats['Files'])
+        print('size=%d' % stats['Size'])
+        print('sha256=%d' % sha256)
+        print('md5=%d' % stats['Md5'])
+        print('foreign=%d' % stats['Foreign'])
+        for (i, (size, name)) in enumerate(stats['Largest'], 1):
+            (marker, name) = escape_name(name)
+            print('largest.%d=%s%d %s' % (i, marker, size, name))
+        return
+
+    print('Format:       version %d' % stats['FileVersion'])
+    print('Files:        %d' % stats['Files'])
+    print('Total size:   %s' % bytes2human(stats['Size']))
+
+    checksums = '%d sha256, %d md5' % (sha256, stats['Md5'])
+    if stats['Md5'] > 0:
+        checksums += " (run 'vrfdir upgrade')"
+    print('Checksums:    %s' % checksums)
+
+    if stats['Foreign'] > 0:
+        print('Foreign:      %d entries' % stats['Foreign'])
+
+    if stats['Largest']:
+        print()
+        print('Largest files:')
+        for (size, name) in stats['Largest']:
+            (marker, name) = escape_name(name)
+            print('  %9s  %s%s' % (bytes2human(size), marker, name))
+
+
+# The descriptions for --help. They are printed as they are, so keep
+# the lines at most 72 columns.
+HELP_MAIN = '''\
+Directory checksum verifier. vrfdir stores the SHA-256 checksum and
+the size of every file you add to it, and later tells if any of those
+files were changed, deleted or silently corrupted. It only detects
+the damage, it does not repair anything.
+
+vrfdir works in the current directory, which has to be the top
+directory of the data. The checksums are stored there in
+.vrfdir/manifest.json. A repository from an older vrfdir, which
+has .vrfdir/hashes.json instead, is read as it is and converted to
+manifest.json by the next command which saves the repository.
+
+A repository from an older vrfdir has the MD5 checksum of the files
+it added. They are still checked as before, run 'vrfdir upgrade' to
+replace them with SHA-256 checksums.
+
+Typical use:
+
+  vrfdir init      create the repository, once
+  vrfdir add .     add all the files, also the new ones later
+  vrfdir status    quick check of the names and the sizes
+  vrfdir check     full check which reads every file
+
+File names are printed as they are, one per line, at the end of the
+line. A name with a newline or a carriage return would look like
+several lines, so it is escaped like md5sum and sha256sum do: the
+line starts with a backslash and the name has \\n, \\r and \\\\ for
+the newline, the carriage return and the backslash. Other names are
+printed as they are. 'vrfdir info' puts the backslash in front of
+the size, or of the name in the list of the largest files. The error
+messages show the escaped name, without the backslash in front.
+
+exit codes, the same in every command:
+  0    success, nothing to report
+  1    differences: the directory differs from the repository
+       (status, check, upgrade)
+  2    corruption: the checksum of a file does not match (check,
+       upgrade)
+  3    error: vrfdir could not do what was asked
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_INIT = '''\
+Create an empty repository, .vrfdir/manifest.json, in the current
+directory. The current directory has to be the top directory of the
+data, all the other commands are run there as well.
+
+An existing repository is never overwritten, init fails if
+.vrfdir/manifest.json or the old .vrfdir/hashes.json already
+exists.
+
+exit codes:
+  0    the repository was created
+  3    error: the repository already exists or it could not be
+       created
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_ADD = '''\
+Calculate the checksums of the files and store them to the
+repository. With a directory all the files below it are added,
+'vrfdir add .' adds everything.
+
+The files which are already added are skipped and not read again, so
+the same command also adds the files which have appeared since the
+last time. An added file which has changed is not updated.
+
+Only regular files are added. A symbolic link given as FILE is
+ignored. Inside a directory a symbolic link to a file is followed, a
+link to a directory is not. The paths have to be inside the current
+directory.
+
+If a file or a directory cannot be read, it is an error and the rest
+of the files are still added. If adding is interrupted, the checksums
+calculated so far are still saved.
+
+exit codes:
+  0    all the files were added
+  3    error: a file or a directory could not be read, a path cannot
+       be added, or the repository is missing, cannot be read or
+       cannot be written
+  64   wrong command line
+  130  interrupted, the checksums calculated so far were saved
+'''
+
+HELP_STATUS = '''\
+Show how the current directory differs from the repository. This is
+the quick check: only the names and the sizes of the files are
+compared, the files are not read. Use 'vrfdir check' to verify the
+checksums.
+
+Every file which differs is printed on its own line after a letter
+(a name with a newline is escaped, see 'vrfdir --help'):
+
+  S  the size of the file has changed
+  D  the file is deleted
+  C  conflict, the name is not a regular file anymore
+  ?  the file is not added
+
+Nothing is printed when there are no differences.
+
+A directory which cannot be read is an error. The differences found
+elsewhere are still printed, but nothing is printed of the added
+files below that directory as it is not known if they exist.
+
+exit codes:
+  0    no differences
+  1    differences: there are changed, deleted or not added files
+  3    error: a directory could not be read, also when differences
+       were found, or the repository is missing or cannot be read
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_CHECK = '''\
+Read every added file and compare its checksum with the one in the
+repository. This is the full check and takes as long as reading all
+the data.
+
+First the names and the sizes are compared, as 'vrfdir status' does.
+If an added file is deleted, its size has changed or it is not a
+regular file anymore, the checksums are not checked at all. Run
+'vrfdir status' to see those files. The files which are not added are
+ignored.
+
+A file with a wrong checksum is printed on its own line (a name with
+a newline is escaped, see 'vrfdir --help'):
+
+  M  the content of the file has changed
+
+A file which cannot be read is an error and the rest of the files are
+still checked. If a directory cannot be read, the checksums are not
+checked at all.
+
+exit codes:
+  0    the checksums of all the files match
+  1    differences: a file is deleted, its size has changed or it is
+       not a regular file anymore, the checksums were not checked
+  2    corruption: the checksum of a file does not match
+  3    error: a file could not be read and no checksum was wrong,
+       a directory could not be read, or the repository is missing
+       or cannot be read
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_LIST = '''\
+Print the checksum, the size in bytes and the name of every added
+file, one file per line. The checksum starts with its algorithm,
+sha256: or md5: (files added by an older vrfdir). The files are not
+read, the output is what was stored when they were added. A name with
+a newline is escaped, see 'vrfdir --help'.
+
+exit codes:
+  0    the files were printed
+  3    error, for example the repository is missing or cannot be
+       read
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_EXPORT = '''\
+Print the SHA-256 checksum and the name of every added file in the
+format of sha256sum. The files are not read, the output is what was
+stored when they were added. A name with a newline is escaped like
+sha256sum does. With it the files can be verified without vrfdir:
+
+  vrfdir export | sha256sum -c
+
+Nothing is printed if some of the files still have an MD5 checksum,
+which an older vrfdir stored. Run 'vrfdir upgrade' first.
+
+exit codes:
+  0    the files were printed
+  3    error, for example some files still have an MD5 checksum, or
+       the repository is missing or cannot be read
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_UPGRADE = '''\
+Upgrade a repository written by an older vrfdir to the latest format.
+Nothing is done if the repository is already up to date.
+
+Files which cannot be upgraded, for example because they were
+changed or deleted, are listed. The rest of the files are still
+upgraded. Run 'vrfdir status' or 'vrfdir check' to see what is wrong
+with them. A name with a newline is escaped, see 'vrfdir --help'. If
+both a changed file and an error are found, the exit code is the one
+of the changed file.
+
+exit codes:
+  0    the repository is up to date
+  1    differences: a file is deleted or its size has changed, it was
+       not upgraded
+  2    corruption: the content of a file has changed, it was not
+       upgraded
+  3    error: a file or a directory could not be read, or the
+       repository is missing or cannot be read
+  64   wrong command line
+  130  interrupted, what was upgraded so far is saved
+'''
+
+HELP_INFO = '''\
+Show information about the repository:
+
+  Format       the version of the format of .vrfdir/manifest.json
+  Files        the number of the added files
+  Total size   the total size of the added files
+  Checksums    how many files have a SHA-256 and how many an MD5
+               checksum, the latter are replaced by 'vrfdir upgrade'
+  Foreign      the number of entries whose name cannot be a file name
+               on this system, only shown when there are any
+  Largest files
+               the five largest files, biggest first
+
+A name with a newline is escaped, see 'vrfdir --help'. Sizes are
+shown in KiB, MiB and so on. With --machine-readable the
+exact values are printed as key=value lines instead, in the order
+version, files, size, sha256, md5, foreign and largest.N (size in
+bytes, a space and the name), without the hints.
+
+exit codes:
+  0    the information was printed
+  3    error, for example the repository is missing or cannot be
+       read
+  64   wrong command line
+  130  interrupted
+'''
+
+HELP_SCAN = '''\
+Go through all the files below the current directory and print the
+ones whose name is not valid in the encoding of the locale, each on
+its own line after the letter E. The last line is the number of the
+files which were found. A name with a newline is escaped, see
+'vrfdir --help'.
+
+vrfdir works with such names, but many other programs do not. scan
+does not need a repository and does not change anything.
+
+A directory which cannot be read is an error, the rest is still
+scanned.
+
+exit codes:
+  0    the scan was done, also when such names were found
+  3    error: a directory could not be read
+  64   wrong command line
+  130  interrupted
+'''
+
+
+# argparse exits with 2 on a wrong command line, which is corruption
+# here. The parsers of the commands are of this class as well.
+class VrfdirArgumentParser(argparse.ArgumentParser):
+
+    # the message in the same format as the others
+    def error(self, message):
+        self.print_usage(sys.stderr)
+        self.exit(EXIT_USAGE, 'Error: %s\nRun \'%s --help\' for the '
+                  'instructions.\n' % (message, self.prog))
+
+
+# Python flushes stdout once more when it exits. After a write to it
+# has failed give it something which does not fail, otherwise Python
+# prints its own message and exits with 120.
+def discard_stdout():
+    devnull = os.open(os.devnull, os.O_WRONLY)
+    os.dup2(devnull, sys.stdout.fileno())
+
+
+def run_command():
+    raw = argparse.RawDescriptionHelpFormatter
+
+    parser = VrfdirArgumentParser(
+        formatter_class=raw, description=HELP_MAIN,
+        epilog='Run \'%(prog)s COMMAND --help\' for the details of a '
+        'command.')
+    parser.add_argument('-d', '--debug', action='store_true',
+                        help='print debug messages to stderr')
+    parser.add_argument('--version', action='version',
+                        version='%(prog)s ' + VERSION,
+                        help='print the version and exit')
+    subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
+                                       dest='command', required=True)
+
+    parser_init = subparsers.add_parser(
+        'init', formatter_class=raw, description=HELP_INIT,
+        help='create an empty repository in the current directory')
+    parser_init.set_defaults(func=cmd_init)
+
+    parser_add = subparsers.add_parser(
+        'add', formatter_class=raw, description=HELP_ADD,
+        help='add files, or all files below a directory')
+    parser_add.add_argument('-q', '--quiet', action='store_true',
+                            help='do not show the progress meter')
+    parser_add.add_argument('files', metavar='FILE', nargs='+',
+                            help='file to add, or a directory to add all '
+                            'files below it')
+    parser_add.set_defaults(func=cmd_add)
+
+    parser_status = subparsers.add_parser(
+        'status', formatter_class=raw, description=HELP_STATUS,
+        help='show the changed, deleted and not added files')
+    parser_status.set_defaults(func=cmd_status)
+
+    parser_check = subparsers.add_parser(
+        'check', formatter_class=raw, description=HELP_CHECK,
+        help='verify the checksums of all added files')
+    parser_check.add_argument('-q', '--quiet', action='store_true',
+                              help='do not show the progress meter')
+    parser_check.set_defaults(func=cmd_check)
+
+    parser_list = subparsers.add_parser(
+        'list', formatter_class=raw, description=HELP_LIST,
+        help='print the checksum, size and name of the added files')
+    parser_list.set_defaults(func=cmd_list)
+
+    parser_export = subparsers.add_parser(
+        'export', formatter_class=raw, description=HELP_EXPORT,
+        help='print the checksums in the format of sha256sum')
+    parser_export.set_defaults(func=cmd_export)
+
+    parser_upgrade = subparsers.add_parser(
+        'upgrade', formatter_class=raw, description=HELP_UPGRADE,
+        help='upgrade the repository to the latest format')
+    parser_upgrade.add_argument('-q', '--quiet', action='store_true',
+                                help='do not show the progress meter')
+    parser_upgrade.set_defaults(func=cmd_upgrade)
+
+    parser_info = subparsers.add_parser(
+        'info', formatter_class=raw, description=HELP_INFO,
+        help='show information about the repository')
+    parser_info.add_argument('-m', '--machine-readable', action='store_true',
+                             help='print exact values as key=value lines')
+    parser_info.set_defaults(func=cmd_info)
+
+    parser_scan = subparsers.add_parser(
+        'scan', formatter_class=raw, description=HELP_SCAN,
+        help='find file names which are not valid in the encoding of the '
+        'locale')
+    parser_scan.set_defaults(func=cmd_scan)
+
+    args = parser.parse_args()
+
+    if args.debug:
+        logger.setLevel(logging.DEBUG)
+
+    # Write the file names as the bytes they have on the disk, also
+    # the names which are not valid in the encoding of the locale. On
+    # Windows this is UTF-8. Do not write the newline as '\r\n' there
+    # so that the output is the same on every system.
+    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
+                           errors=sys.getfilesystemencodeerrors(),
+                           newline='\n')
+
+    logger.debug('filesystem encoding: %s', sys.getfilesystemencoding())
+
+    args.func(args)
+
+
+def main():
+    global logger
+
+    # Python sets these to None when the program is started with
+    # stdout or stderr closed.
+    if sys.stdout is None:
+        sys.stdout = open(os.devnull, 'w')
+
+    if sys.stderr is None:
+        sys.stderr = open(os.devnull, 'w')
+
+    # the messages are 'Error: cannot do foo'
+    logging.addLevelName(logging.ERROR, 'Error')
+    logging.addLevelName(logging.WARNING, 'Warning')
+    logging.addLevelName(logging.DEBUG, 'Debug')
+
+    logger = logging.getLogger('vrfdir')
+    logging.basicConfig(format='%(levelname)s: %(message)s', stream=sys.stderr)
+
+    # no stacktrace from logging when writing a message fails
+    logging.raiseExceptions = False
+
+    # Parse the command line and call the function of the command.
+    # What a command does not handle itself ends here, so that the
+    # exit code is never the 1 of a Python stacktrace, which means
+    # differences. Also argparse is inside the try, it prints the help
+    # to stdout.
+    try:
+        try:
+            run_command()
+        finally:
+            # here, also when the command exits, so that a failure to
+            # write the output is noticed
+            sys.stdout.flush()
+    except KeyboardInterrupt:
+        logger.error('interrupted')
+        sys.exit(EXIT_INTERRUPTED)
+    except BrokenPipeError:
+        # the reader of the output, for example head, has exited
+        discard_stdout()
+        sys.exit(EXIT_ERROR)
+    except OSError as e:
+        # The commands handle the files themselves, what gets here
+        # without a file name is a failed write to stdout.
+        if e.filename is None:
+            logger.error('cannot write the output: %s' % error_reason(e))
+        else:
+            logger.error('cannot access %s: %s' % (e.filename,
+                                                   error_reason(e)))
+
+        discard_stdout()
+        sys.exit(EXIT_ERROR)
+    except Exception:
+        # a bug, keep the stacktrace for the report
+        logger.exception('internal error, this is a bug in vrfdir')
+        sys.exit(EXIT_ERROR)
+
+
+if __name__ == "__main__":
+    main()

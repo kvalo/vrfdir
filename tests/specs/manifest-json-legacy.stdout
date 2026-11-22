@@ -1,0 +1,23 @@
+init refuses the old name
+exit value: 3
+hashes.json
+
+manifest.json is used when both exist
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+the next write removes the old file
+manifest.json
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+
+the old file is damaged
+exit value: 3
+
+the old file is of a newer version
+exit value: 3
+
+the old file cannot be removed
+exit value: 3
+hashes.json
+manifest.json
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b

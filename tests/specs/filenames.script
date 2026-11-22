@@ -1,0 +1,75 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test broken filenames
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+
+
+set -e
+
+cd "$DATADIR"
+
+# create simple repo
+"$SRCDIR/vrfdir" init
+
+echo "test space"
+file_space=$(printf 'space: foo')
+echo 1234567890 > "$file_space"
+"$SRCDIR/vrfdir" add --quiet "$file_space"
+echo
+
+echo "test horizontal tab"
+file_tab=$(printf 'horizontal-tab:\tfoo')
+echo 0000000000 > "$file_tab"
+"$SRCDIR/vrfdir" add --quiet "$file_tab"
+echo
+
+# the md5sum command would take the name as an option
+echo "test leading dash"
+file_dash='-dash'
+echo 3333333333 > "./$file_dash"
+"$SRCDIR/vrfdir" add --quiet "./$file_dash"
+echo
+
+# the md5sum command escapes the name and marks the output line with
+# a backslash
+echo "test backslash"
+file_backslash='back\slash'
+echo 4444444444 > "$file_backslash"
+"$SRCDIR/vrfdir" add --quiet "$file_backslash"
+echo
+
+echo "test utf-8 character in subdir"
+utf8_subdir=$(printf 'utf-8/')
+mkdir -p "$utf8_subdir"
+file_utf8_subdir=$utf8_subdir$(printf 'KEV\xc3\x84TJUHLA')
+echo 2222222222 > "$file_utf8_subdir"
+"$SRCDIR/vrfdir" add --quiet utf-8
+echo
+
+echo ls --escape
+LC_ALL=C ls --escape
+echo
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info
+echo
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo
+
+# cleanup
+rm -fr .vrfdir "$file_space" "$file_tab" "./$file_dash" "$file_backslash" \
+   "$utf8_subdir"

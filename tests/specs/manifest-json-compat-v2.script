@@ -1,0 +1,64 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a manifest.json of format version 2, the current one, is
+# read as it is. tests/data/manifest-v2.json is a file of the format
+# version 2, written by vrfdir. It must never be regenerated: when the
+# format changes, a new vrfdir has to read this file as it is, see
+# MANIFEST_VERSION.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+printf 'aaaa\n' > a
+mkdir dir
+printf 'bbbb\n' > dir/b
+printf 'cccc\n' > 'space name'
+: > empty
+printf 'dddd\n' > "$(printf 'KEV\xc3\x84T')"
+printf 'eeee\n' > "$(printf 'iso8859-1: \xc4')"
+printf 'ffff\n' > 'back\slash'
+
+mkdir .vrfdir
+cp "$SRCDIR/tests/data/manifest-v2.json" .vrfdir/manifest.json
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir status
+"$SRCDIR/vrfdir" status | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+echo
+echo sha256sum can verify the files with the export
+"$SRCDIR/vrfdir" export | sha256sum -c --quiet
+echo "exit value: ${PIPESTATUS[1]}"
+echo
+echo upgrade has nothing to upgrade
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+echo
+echo a file is corrupted
+printf 'xxxx\n' > a
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo reading does not change the file
+cmp .vrfdir/manifest.json "$SRCDIR/tests/data/manifest-v2.json"
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a dir 'space name' empty "$(printf 'KEV\xc3\x84T')" \
+   "$(printf 'iso8859-1: \xc4')" 'back\slash'

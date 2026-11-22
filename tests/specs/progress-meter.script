@@ -1,0 +1,49 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the progress meter of add and check. It is updated at most
+# once a second, so only the last line is compared, which is always
+# written.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# the meter uses '\r' to overwrite the line. The speed and the time
+# used depend on the machine, they are cut off when there are any.
+last_line() {
+    tr '\r' '\n' | grep . | tail -n 1 |
+        sed -E 's|, [0-9.]+ [A-Za-z]+/s, [0-9:]+\)$|)|'
+}
+
+"$SRCDIR/vrfdir" init
+
+echo three small files
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+"$SRCDIR/vrfdir" add a b c | last_line
+"$SRCDIR/vrfdir" check | last_line
+
+echo the units
+head -c 1023 /dev/zero > b1023
+head -c 1024 /dev/zero > k1024
+head -c 1572864 /dev/zero > m1.5
+"$SRCDIR/vrfdir" add b1023 | last_line
+"$SRCDIR/vrfdir" add k1024 | last_line
+"$SRCDIR/vrfdir" add m1.5 | last_line
+"$SRCDIR/vrfdir" check | last_line
+
+echo only empty files, there is no meter
+: > e1
+: > e2
+"$SRCDIR/vrfdir" add e1 e2 | od -c
+"$SRCDIR/vrfdir" check | last_line
+
+echo --quiet
+echo dddd > d
+"$SRCDIR/vrfdir" add --quiet d | od -c
+"$SRCDIR/vrfdir" check --quiet | od -c
+
+# cleanup
+rm -fr .vrfdir a b c d e1 e2 b1023 k1024 m1.5

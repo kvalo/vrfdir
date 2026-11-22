@@ -1,0 +1,40 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that export refuses to print anything while a file has an MD5
+# checksum, sha256sum -c cannot verify it. The error is the same for
+# the files of another system, which are not read.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+mkdir .vrfdir
+echo aaaa > a
+
+echo one MD5 checksum
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 1, "files": {"a": {"md5sum": "e5828c564f71fea3a12dde8bd5d27063", "size": 5}}}]
+JSON
+"$SRCDIR/vrfdir" export
+echo "exit value: $?"
+
+echo a mix of the algorithms, nothing is printed at all
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}, "b": {"checksum": "md5:9448a1bf333fadd2a57965ec38487b89", "size": 5}, "../c": {"checksum": "md5:b26795c69684a7c9cc4a94ff70a95b71", "size": 5}}}]
+JSON
+"$SRCDIR/vrfdir" export
+echo "exit value: $?"
+echo list works
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+
+echo only SHA-256 checksums
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}}}]
+JSON
+"$SRCDIR/vrfdir" export
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a

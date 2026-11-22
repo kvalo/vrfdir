@@ -1,0 +1,47 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a wrong command line is the exit value 64 and the message
+# of vrfdir, never the 2 of argparse, which is corruption here
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# usage ARGS...
+usage() {
+    echo "vrfdir $*"
+    "$SRCDIR/vrfdir" "$@" > stdout.txt 2> stderr.txt
+    retval=$?
+    if [ $retval != 64 ]; then
+        echo Wrong exit value: $retval
+    fi
+    # nothing for the output of the command
+    cat stdout.txt
+    # the usage line depends on the version of Python
+    grep -v '^usage:' stderr.txt >&2
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+"$SRCDIR/vrfdir" add --quiet a
+
+usage init foo
+usage status foo
+usage check foo
+usage list foo
+usage export foo
+usage info foo
+usage scan foo
+usage list -x
+usage --quiet check
+usage add --quiet
+usage add -q
+usage --no-such-option list
+
+# the repository is not changed
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a stdout.txt stderr.txt

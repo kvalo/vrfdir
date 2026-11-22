@@ -1,0 +1,37 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the commands which only print what is in manifest.json with an
+# empty repository, and with sizes which do not fit the columns
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+for cmd in info list export; do
+    echo "vrfdir $cmd, empty repository"
+    "$SRCDIR/vrfdir" "$cmd"
+    echo "exit value: $?"
+done
+
+echo sizes of 12, 13 and 15 digits, the files are not read
+cat > .vrfdir/manifest.json << 'JSON'
+[{"version": 2, "files": {
+"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 123456789012},
+"b": {"checksum": "sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48", "size": 1234567890123},
+"c": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 123456789012345}
+}}]
+JSON
+for cmd in info list export; do
+    echo "vrfdir $cmd"
+    "$SRCDIR/vrfdir" "$cmd"
+    echo "exit value: $?"
+done
+echo "vrfdir info --machine-readable"
+"$SRCDIR/vrfdir" info --machine-readable
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir

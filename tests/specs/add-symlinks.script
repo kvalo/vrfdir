@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the symbolic links. A link given to add is ignored, in a
+# directory a link to a file is followed and a link to a directory is
+# not.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+mkdir dir
+echo bbbb > dir/b
+ln -s a link-to-file
+ln -s dir link-to-dir
+ln -s no-such-file dangling
+
+echo links given on the command line are ignored
+"$SRCDIR/vrfdir" add --quiet link-to-file link-to-dir dangling
+echo "exit value: $?"
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo links in a directory
+mkdir top
+echo cccc > top/c
+ln -s ../a top/link-to-file
+ln -s ../dir top/link-to-dir
+ln -s no-such-file top/dangling
+ln -s . top/loop
+"$SRCDIR/vrfdir" add --quiet top
+echo "exit value: $?"
+echo vrfdir list
+"$SRCDIR/vrfdir" list | sort -k 3
+
+# Note that status shows a link to a file which is not added as a file
+# which is not added, but add does not add it when it is given on the
+# command line. See "smaller issues found in the review" in TODO.md.
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo an added file is replaced with a link to another file
+rm top/c
+ln -s ../dir/b top/c
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+echo an added file is replaced with a dangling link
+rm top/c
+ln -s no-such-file top/c
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a dir top link-to-file link-to-dir dangling

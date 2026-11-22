@@ -1,0 +1,107 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# more broken manifest.json files, see manifest-json-failures. Every one
+# must be a message of vrfdir and the exit value 3, not a stacktrace.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# check_json 'content'
+check_json() {
+    printf '%s\n' "$1" > .vrfdir/manifest.json
+    "$SRCDIR/vrfdir" status
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+mkdir .vrfdir
+
+echo an empty list
+check_json '[]'
+echo a list of a number
+check_json '[1]'
+echo a list of null
+check_json '[null]'
+echo an empty object
+check_json '[{}]'
+echo trailing text
+check_json '[{"version": 2, "files": {}}] x'
+echo a byte order mark
+printf '\357\273\277[{"version": 2, "files": {}}]\n' > .vrfdir/manifest.json
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo the version is a float
+check_json '[{"version": 1.0, "files": {}}]'
+echo the version is a string
+check_json '[{"version": "1", "files": {}}]'
+echo the version is null
+check_json '[{"version": null, "files": {}}]'
+echo the version is negative
+check_json '[{"version": -1, "files": {}}]'
+echo files is null
+check_json '[{"version": 2, "files": null}]'
+
+echo the name is empty
+check_json '[{"version": 2, "files": {"": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}}}]'
+echo the name has a NUL character
+check_json '[{"version": 2, "files": {"a\u0000b": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}}}]'
+
+echo the entry is null
+check_json '[{"version": 2, "files": {"a": null}}]'
+echo the entry is a list
+check_json '[{"version": 2, "files": {"a": ["e5828c564f71fea3a12dde8bd5d27063", 5]}}]'
+echo the checksum is a number
+check_json '[{"version": 2, "files": {"a": {"md5sum": 5, "size": 5}}}]'
+echo the checksum is missing
+check_json '[{"version": 2, "files": {"a": {"size": 5}}}]'
+echo the size is a string
+check_json '[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": "5"}}}]'
+echo the size is a float
+check_json '[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5.5}}}]'
+echo the size is a boolean
+check_json '[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": true}}}]'
+echo the second entry is broken
+check_json '[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}, "b": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772"}}}]'
+
+echo every command stops with the same message
+printf '%s\n' '[{"version": 2, "files": {}' > .vrfdir/manifest.json
+for cmd in status check list export info 'add a'; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/vrfdir" $cmd
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo "$cmd: Wrong exit value: $retval"
+    fi
+done
+
+echo .vrfdir is a file
+rm -fr .vrfdir
+echo foobar > .vrfdir
+for cmd in status check list export info 'add a'; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/vrfdir" $cmd
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo "$cmd: Wrong exit value: $retval"
+    fi
+done
+
+echo .vrfdir is a dangling symbolic link
+rm -f .vrfdir
+ln -s no-such-directory .vrfdir
+for cmd in status check list export info 'add a'; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/vrfdir" $cmd
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo "$cmd: Wrong exit value: $retval"
+    fi
+done
+
+# cleanup
+rm -fr .vrfdir

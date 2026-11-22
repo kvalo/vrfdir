@@ -1,0 +1,18 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run the pytest unit tests of tests/unit. Arguments are the ones of
+# pytest. Requires python3-pytest.
+
+set -eu
+
+if ! python3 -c 'import pytest' 2> /dev/null; then
+    echo "unit: the Python module pytest is missing" >&2
+    exit 1
+fi
+
+cd "$(dirname "$0")"
+
+# no .pytest_cache or __pycache__ in the source directory
+exec python3 -B -m pytest -p no:cacheprovider tests/unit "$@"

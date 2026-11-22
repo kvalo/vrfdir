@@ -1,0 +1,51 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run the tests and print which lines of vrfdir they did not run.
+# Arguments are the ones of ./check. Requires python3-coverage.
+
+set -eu
+
+if ! python3 -c 'import coverage' 2> /dev/null; then
+    echo "coverage: the Python module coverage is missing" >&2
+    exit 1
+fi
+
+srcdir=$(cd "$(dirname "$0")" && pwd)
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+# The tests run vrfdir as a new process many times, also through
+# tests/sigint-at and tests/inject-at. Every Python process starts
+# the measurement by itself with this, and writes its own data file.
+mkdir "$tmp/site"
+cat > "$tmp/site/sitecustomize.py" << 'PY'
+import coverage
+coverage.process_startup()
+PY
+
+cat > "$tmp/rc" << RC
+[run]
+parallel = True
+data_file = $tmp/.coverage
+include = $srcdir/vrfdir
+RC
+
+status=0
+PYTHONPATH="$tmp/site${PYTHONPATH:+:$PYTHONPATH}" \
+    COVERAGE_PROCESS_START="$tmp/rc" "$srcdir/check" "$@" || status=$?
+
+# the unit tests run vrfdir in their own process, not as a command
+if python3 -c 'import pytest' 2> /dev/null; then
+    python3 -B -m coverage run --rcfile="$tmp/rc" -m pytest \
+        -p no:cacheprovider "$srcdir/tests/unit" || status=$?
+else
+    echo "coverage: pytest is missing, the unit tests were not run" >&2
+    status=1
+fi
+
+python3 -m coverage combine --rcfile="$tmp/rc" > /dev/null
+python3 -m coverage report --rcfile="$tmp/rc" -m
+
+exit $status

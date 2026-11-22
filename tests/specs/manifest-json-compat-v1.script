@@ -1,0 +1,71 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a manifest.json of format version 1, which has the MD5
+# checksums in the md5sum key, still works. It is read as it is and
+# converted by the next write, the files keep their MD5 checksums
+# until 'vrfdir upgrade'.
+# tests/data/manifest-v1.json is a file of the format version 1, written
+# by vrfdir. It must never be regenerated: when the format changes, a
+# new vrfdir has to read this file as it is, see MANIFEST_VERSION.
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+printf 'aaaa\n' > a
+mkdir dir
+printf 'bbbb\n' > dir/b
+printf 'cccc\n' > 'space name'
+: > empty
+printf 'dddd\n' > "$(printf 'KEV\xc3\x84T')"
+printf 'eeee\n' > "$(printf 'iso8859-1: \xc4')"
+printf 'ffff\n' > 'back\slash'
+
+mkdir .vrfdir
+cp "$SRCDIR/tests/data/manifest-v1.json" .vrfdir/manifest.json
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir status
+"$SRCDIR/vrfdir" status | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+echo vrfdir check, the MD5 checksums are checked
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo vrfdir list
+"$SRCDIR/vrfdir" list | cat -v
+echo
+echo export cannot print the MD5 checksums for sha256sum
+"$SRCDIR/vrfdir" export 2>&1 | cat -v
+echo "exit value: ${PIPESTATUS[0]}"
+echo
+
+echo a file is corrupted
+printf 'xxxx\n' > a
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+echo
+echo reading does not touch the file
+grep -o '"version": [0-9]*' .vrfdir/manifest.json
+echo
+echo adding converts the file, the old files keep the MD5 checksum
+printf 'gggg\n' > g
+"$SRCDIR/vrfdir" add --quiet g
+grep -o '"version": [0-9]*' .vrfdir/manifest.json
+grep -c md5sum .vrfdir/manifest.json
+"$SRCDIR/vrfdir" list | cat -v
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a dir 'space name' empty "$(printf 'KEV\xc3\x84T')" \
+   "$(printf 'iso8859-1: \xc4')" 'back\slash' g

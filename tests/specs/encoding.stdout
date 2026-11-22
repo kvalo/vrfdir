@@ -1,0 +1,15 @@
+add in utf-8
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVM-CM-^DTJUHLA
+sha256:63d19a99ef7db94ddbb1e4a5083062226551cd8197312e3aa0aa7c369ac3e458  11           iso8859-1: M-D
+
+verify in ascii
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVM-CM-^DTJUHLA
+sha256:63d19a99ef7db94ddbb1e4a5083062226551cd8197312e3aa0aa7c369ac3e458  11           iso8859-1: M-D
+
+add in ascii
+
+verify in utf-8
+
+list with PYTHONIOENCODING
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVM-CM-^DTJUHLA
+sha256:63d19a99ef7db94ddbb1e4a5083062226551cd8197312e3aa0aa7c369ac3e458  11           iso8859-1: M-D

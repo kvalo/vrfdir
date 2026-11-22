@@ -1,0 +1,64 @@
+exit value: 0
+
+vrfdir list
+sha256:92bb8dfca790bff5f828acc389dd2b4035bbd5d3dd18b5f919372b4c6913fd5a  5            back\nslash
+sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  5            back\slash
+\sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            x\nM fake
+\sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            c\rd
+\sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a\nb
+
+vrfdir export
+92bb8dfca790bff5f828acc389dd2b4035bbd5d3dd18b5f919372b4c6913fd5a  back\nslash
+5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  back\slash
+\02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  x\nM fake
+\4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  c\rd
+\11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  a\nb
+
+sha256sum -c accepts the exported names
+\a\nb: OK
+\back\\nslash: OK
+\back\\slash: OK
+\c\rd: OK
+\x\nM fake: OK
+
+vrfdir info
+Format:       version 2
+Files:        5
+Total size:   25 B
+Checksums:    5 sha256, 0 md5
+
+Largest files:
+        5 B  \a\nb
+        5 B  back\nslash
+        5 B  back\slash
+        5 B  \c\rd
+        5 B  \x\nM fake
+largest.1=\5 a\nb
+largest.2=5 back\nslash
+largest.3=5 back\slash
+largest.4=\5 c\rd
+largest.5=\5 x\nM fake
+
+vrfdir scan
+\E bad\nM-D
+6 files
+
+vrfdir status, nothing changed
+exit value: 0
+
+vrfdir status, a size changed and a file is deleted
+\S a\nb
+\D c\rd
+\? new\nfile
+
+vrfdir check, one file is changed and the sizes are the same
+\M a\nb
+1 file(s) modified
+exit value: 2
+
+the error messages have the name on one line
+Error: cannot read x\nM fake: Permission denied
+\M a\nb
+1 file(s) modified
+1 file(s) could not be checked
+exit value: 2

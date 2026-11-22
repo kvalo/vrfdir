@@ -1,0 +1,41 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that files which are not added do not prevent the check command
+# from verifying the checksums
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+echo aaaa > a
+echo bbbb > b
+
+"$SRCDIR/vrfdir" add --quiet a b
+
+echo foobar > not-yet-added
+
+echo check with a file which is not added
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 0 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# same size, different content
+echo cccc > a
+
+echo check with a corrupted file
+"$SRCDIR/vrfdir" check --quiet
+retval=$?
+
+if [ $retval != 2 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# cleanup
+rm -fr .vrfdir a b not-yet-added

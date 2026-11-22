@@ -1,0 +1,17 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# init empty directory and run few commands
+
+set -e
+
+cd "$DATADIR"
+
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" status
+"$SRCDIR/vrfdir" list
+"$SRCDIR/vrfdir" check --quiet
+
+# cleanup
+rm -fr .vrfdir

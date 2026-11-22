@@ -1,0 +1,35 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a file which cannot be read does not prevent adding the
+# other files
+#
+# Note: this does not work as root, which can read the file anyway.
+
+# don't 'set -e' on purpose so that we can verify the exit value from
+# the add command
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+chmod 000 b
+
+"$SRCDIR/vrfdir" add --quiet a b c
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+
+# cleanup
+rm -fr .vrfdir a b c

@@ -1,0 +1,17 @@
+Error: cannot read b: Input/output error
+Error: cannot read b: Input/output error
+Error: cannot add b: Input/output error
+Error: cannot add b: No such file or directory
+Error: cannot add a: No such file or directory
+Error: cannot save the repository .vrfdir/manifest.json: No space left on device, the added files were not saved
+Error: interrupted, the files added so far were saved
+Error: interrupted
+Error: interrupted
+Error: internal error, this is a bug in vrfdir
+Error: internal error, this is a bug in vrfdir
+Error: cannot read a: Permission denied
+Error: cannot read a: Input/output error
+Error: cannot read a: Input/output error
+Error: cannot read a: Input/output error
+Error: cannot read a: Input/output error
+Error: cannot access some-file: Input/output error

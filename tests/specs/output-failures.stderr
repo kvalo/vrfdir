@@ -1,0 +1,6 @@
+stdout closed
+disk full
+Error: cannot write the output: No space left on device
+broken pipe
+stderr closed
+exit value: 64

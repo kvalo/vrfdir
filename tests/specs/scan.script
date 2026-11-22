@@ -1,0 +1,53 @@
+#!/bin/bash
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test scan command
+#
+# Note: this script must use bash, not dash, to be able to correctly
+# create weird filenames!
+
+set -e
+
+SUBDIR="0/00/000/0000"
+
+cd "$DATADIR"
+
+echo "create weird files"
+
+mkdir -p $SUBDIR
+
+file_space=$SUBDIR/$(printf 'space: foo')
+echo 1234567890 > "$file_space"
+
+file_tab=$SUBDIR/$(printf 'horizontal-tab:\tfoo')
+echo 0000000000 > "$file_tab"
+
+file_8859=$SUBDIR/$(printf 'iso8859-1-a-with-diaeresis: \xc4')
+echo 0000000000 > "$file_8859"
+
+# a valid name in a directory which has an invalid name
+dir_8859=$(printf 'dir-\xe4')
+mkdir "$dir_8859"
+echo 0000000000 > "$dir_8859/valid"
+
+file_utf8=$(printf 'KEV\xc3\x84TJUHLA')
+echo 0000000000 > "$file_utf8"
+
+echo ls --escape $SUBDIR
+LC_ALL=C ls --escape $SUBDIR
+echo
+
+# cat -v shows the bytes which are not valid UTF-8
+echo vrfdir scan
+"$SRCDIR/vrfdir" scan | cat -v
+echo
+
+# the files in .vrfdir are not counted
+echo vrfdir scan with a repository
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" scan | cat -v
+echo
+
+# cleanup
+rm -fr .vrfdir 0 "$dir_8859" "$file_utf8"
