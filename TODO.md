@@ -162,21 +162,20 @@ Open questions, the tools have not been chosen yet:
 
 vrfdir has code for Windows and macOS (the '/' separator, names
 with a different case, junctions, names which cannot exist on
-Windows) but the tests are sh scripts. CI runs the ones which work
-on macOS (`./check --portable`) and `./unit` on `macos-latest`, the
-rest run only on Linux. So far the code for Windows and the BSDs is
-tried only by hand.
+Windows) but the tests are sh scripts. CI runs `./check` and
+`./unit` on `macos-latest`, where `tests/specs-macos/` tests the
+case and the normalisation form of names. So far the code for
+Windows and the BSDs is tried only by hand.
 
-Add tests which can run on every system, for example a Python
-script which uses only the standard library, and try vrfdir on a
-real macOS and BSD machine. The pytest tests in `tests/unit` are
-meant for this: they call the functions in the same process and
-need no shell, so they can be run on a Windows or macOS runner and
-the tests of the code for that system (`skipif` on the real
-platform) run there.
+Add tests which can run on Windows, for example a Python script
+which uses only the standard library, and try vrfdir on a real BSD
+machine. The pytest tests in `tests/unit` are meant for this: they
+call the functions in the same process and need no shell, so they
+can be run on a Windows runner and the tests of the code for that
+system (`skipif` on the real platform) run there.
 
-Until then, the code which no test reaches on Linux has to be tried by
-hand on each system after a change. What to try:
+Until then, the code which no test reaches has to be tried by hand
+on each system after a change. What to try:
 
 - Windows: init, add and check of a directory with sub directories,
   `vrfdir add dir\sub\file` gives the name `dir/sub/file`, and the
@@ -185,11 +184,9 @@ hand on each system after a change. What to try:
   (status shows them as D, add and check do not touch them). A
   junction to a directory is not followed. Replacing manifest.json
   while another program has it open is retried.
-- Windows and macOS: `vrfdir add A` for a file `a` adds the name as it
-  is on the disk, adding `a` and `A` is one file, and `.VRFDIR` is
-  the repository directory and not data.
-- macOS: a name which is typed in the other Unicode normalisation form
-  is the same file.
+- Windows: `vrfdir add A` for a file `a` adds the name as it is on
+  the disk, adding `a` and `A` is one file, and `.VRFDIR` is the
+  repository directory and not data (macOS has tests for these).
 - the BSDs: run ./check, and try a symbolic link to a directory and a
   file name which is not valid in the locale.
 
