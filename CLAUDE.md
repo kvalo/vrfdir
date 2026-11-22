@@ -134,10 +134,12 @@ commands, signals, fault injection and unreadable files.
   system. An entry of `manifest.json` whose name cannot be a file name
   on the current system (`is_native_name()`) is kept in
   `VrfdirRepo.foreign` and written back as it is, never dropped.
-- vrfdir has to work on Linux, the BSDs, macOS and Windows. The tests
-  run only on Linux, so nothing checks the code which is only for
-  the other systems (`sys.platform`, `CASE_INSENSITIVE`). Say so when
-  you change it, the user has to try it by hand.
+- vrfdir has to work on Linux, the BSDs, macOS and Windows. CI runs
+  the tests on Linux and macOS (`./check --portable` and `./unit`
+  there), but nothing runs on Windows or the BSDs, and nothing checks
+  the macOS code which `tests/specs-linux/` would reach
+  (`CASE_INSENSITIVE`). Say so when you change code which is only for
+  one system, the user has to try it by hand.
 - The tests are run in a UTF-8 locale.
 
 ## Help texts

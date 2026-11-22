@@ -162,9 +162,10 @@ Open questions, the tools have not been chosen yet:
 
 vrfdir has code for Windows and macOS (the '/' separator, names
 with a different case, junctions, names which cannot exist on
-Windows) but the tests are sh scripts and run only on Linux. So far
-that code is tried only by hand on Windows, and not at all on macOS
-and the BSDs.
+Windows) but the tests are sh scripts. CI runs the ones which work
+on macOS (`./check --portable`) and `./unit` on `macos-latest`, the
+rest run only on Linux. So far the code for Windows and the BSDs is
+tried only by hand.
 
 Add tests which can run on every system, for example a Python
 script which uses only the standard library, and try vrfdir on a
