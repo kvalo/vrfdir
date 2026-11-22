@@ -1,0 +1,58 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test .vrfdir/manifest.json.bak, the previous manifest.json which is
+# kept by every save, and restoring the repository from it
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# what manifest.json.bak has
+list_backup() {
+    echo vrfdir list of the backup
+    mkdir -p backup/.vrfdir
+    cp .vrfdir/manifest.json.bak backup/.vrfdir/manifest.json
+    (cd backup && "$SRCDIR/vrfdir" list)
+    rm -r backup
+}
+
+echo a new repository has no backup
+"$SRCDIR/vrfdir" init
+ls .vrfdir
+
+echo aaaa > a
+echo bbbb > b
+
+echo the first add keeps the empty repository
+"$SRCDIR/vrfdir" add --quiet a
+ls .vrfdir
+list_backup
+
+echo the next add keeps the version with a
+"$SRCDIR/vrfdir" add --quiet b
+list_backup
+
+echo nothing new to add, the backup is not changed
+cp .vrfdir/manifest.json.bak before.bak
+"$SRCDIR/vrfdir" add --quiet a b
+if ! cmp -s .vrfdir/manifest.json.bak before.bak; then
+    echo The backup changed
+fi
+rm before.bak
+
+echo manifest.json is damaged
+sed 's/"size": 5/"size": 7/' .vrfdir/manifest.json > damaged.json
+mv damaged.json .vrfdir/manifest.json
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+
+echo the backup restores the repository, one save old
+mv .vrfdir/manifest.json.bak .vrfdir/manifest.json
+"$SRCDIR/vrfdir" list
+echo "exit value: $?"
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir a b

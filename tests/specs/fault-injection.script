@@ -26,6 +26,15 @@ inject() {
     fi
 }
 
+# what manifest.json.bak has
+list_backup() {
+    echo vrfdir list of the backup
+    mkdir -p backup/.vrfdir
+    cp .vrfdir/manifest.json.bak backup/.vrfdir/manifest.json
+    (cd backup && "$SRCDIR/vrfdir" list)
+    rm -r backup
+}
+
 "$SRCDIR/vrfdir" init
 echo aaaa > a
 echo bbbb > b
@@ -61,7 +70,9 @@ inject enoent-stat 4 3 add --quiet a b c
 echo vrfdir list
 "$SRCDIR/vrfdir" list
 
-echo add: full disk when saving, nothing is saved
+# The backup is saved first (the first fsync and rename), then
+# manifest.json (the second ones).
+echo add: full disk when saving the backup, nothing is saved
 rm -fr .vrfdir
 "$SRCDIR/vrfdir" init
 "$SRCDIR/vrfdir" add --quiet a
@@ -70,14 +81,30 @@ echo vrfdir list
 "$SRCDIR/vrfdir" list
 echo ls .vrfdir
 ls .vrfdir
+list_backup
+
+echo add: full disk when saving, nothing is saved
+inject enospc-fsync 2 3 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+list_backup
 
 echo add: Ctrl-C when the directory is read, the repository is intact
 inject sigint-scandir 1 130 add --quiet .
 echo vrfdir list
 "$SRCDIR/vrfdir" list
 
-echo add: Ctrl-C when saving, manifest.json is the old complete file
+echo add: Ctrl-C when saving the backup, manifest.json is not changed
 inject sigint-replace 1 130 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+
+echo add: Ctrl-C when saving, manifest.json is the old complete file
+inject sigint-replace 2 130 add --quiet b c
 echo vrfdir list
 "$SRCDIR/vrfdir" list
 echo ls .vrfdir

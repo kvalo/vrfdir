@@ -61,6 +61,12 @@ echo gggg > g
 "$SRCDIR/vrfdir" info | cat -v
 ls .vrfdir
 echo
+echo the backup is the old file in the format of manifest.json, without g
+mkdir -p backup/.vrfdir
+cp .vrfdir/manifest.json.bak backup/.vrfdir/manifest.json
+(cd backup && "$SRCDIR/vrfdir" list) | cat -v
+rm -r backup
+echo
 echo upgrade does not replace the checksum of a corrupted file
 "$SRCDIR/vrfdir" upgrade --quiet
 echo "exit value: $?"

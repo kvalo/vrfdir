@@ -24,6 +24,11 @@ echo next write replaces the stale file
 ls .vrfdir
 "$SRCDIR/vrfdir" list
 
+echo stale temporary file of the backup, list warns but works
+echo garbage > .vrfdir/manifest.json.bak.tmp
+"$SRCDIR/vrfdir" list
+rm .vrfdir/manifest.json.bak.tmp
+
 echo write fails
 echo cccc > c
 mkdir .vrfdir/manifest.json.tmp

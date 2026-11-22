@@ -24,6 +24,11 @@ VRFDIR_MANIFEST_TMP = 'manifest.json.tmp'
 VRFDIR_MANIFEST_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_JSON)
 VRFDIR_MANIFEST_TMP_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_TMP)
 
+# The previous manifest.json, kept by every write. It is a valid
+# manifest.json, renaming it back restores the repository.
+VRFDIR_BACKUP_PATH = VRFDIR_MANIFEST_PATH + '.bak'
+VRFDIR_BACKUP_TMP_PATH = VRFDIR_BACKUP_PATH + '.tmp'
+
 # The release of vrfdir, following Semantic Versioning. It has nothing to
 # do with MANIFEST_VERSION. '+git' marks a version which is not
 # released, see CHANGELOG.md.
@@ -355,6 +360,29 @@ def replace_file(src, dst):
 
         retries -= 1
         time.sleep(REPLACE_RETRY_DELAY)
+
+
+# Write to a temporary file first and rename it over the old one, so
+# that an interrupted write never leaves a truncated file behind.
+def save_file(filename, tmpname, buf):
+    logger.debug('writing to %s: %s', filename, buf)
+
+    try:
+        # no '\r\n' on Windows, the file is the same everywhere
+        with open(tmpname, 'w', encoding='utf-8', newline='\n') as f:
+            f.write(buf)
+            f.flush()
+            os.fsync(f.fileno())
+
+        replace_file(tmpname, filename)
+    except BaseException:
+        # don't leave a partial temporary file behind
+        try:
+            os.unlink(tmpname)
+        except OSError:
+            pass
+
+        raise
 
 
 class ProgressMeter:
@@ -1043,43 +1071,44 @@ class VrfdirRepo:
         # the complete previous version. Don't remove the file here,
         # it can also belong to another vrfdir which is writing right
         # now. The next write replaces it.
-        tmpname = VRFDIR_MANIFEST_TMP_PATH
-        if os.path.lexists(tmpname):
-            logger.warning('%s exists: an earlier vrfdir was interrupted '
-                           'while saving and the files it added may be '
-                           'missing. Run \'vrfdir add\' again' % tmpname)
+        for tmpname in (VRFDIR_BACKUP_TMP_PATH, VRFDIR_MANIFEST_TMP_PATH):
+            if os.path.lexists(tmpname):
+                logger.warning('%s exists: an earlier vrfdir was '
+                               'interrupted while saving and the files it '
+                               'added may be missing. Run \'vrfdir add\' '
+                               'again' % tmpname)
 
         return VrfdirRepo(buf, legacy)
 
-    def write(self):
-        filename = VRFDIR_MANIFEST_PATH
-        tmpname = VRFDIR_MANIFEST_TMP_PATH
+    # The previous content as a valid manifest.json for the backup. The
+    # old hashes.json would be refused as manifest.json, so it is
+    # written in the current format, without the changes made since.
+    def backup_json(self):
+        if not self.legacy:
+            return self.raw
 
+        old = VrfdirRepo(self.raw, legacy=True)
+        old.version = MANIFEST_VERSION
+        return old.dump_json()
+
+    def write(self):
         # an old repository is converted here
         self.version = MANIFEST_VERSION
 
         buf = self.dump_json()
-        logger.debug('writing to %s: %s', filename, buf)
 
-        # Write to a temporary file first and rename it over the old
-        # one, so that an interrupted write never leaves a truncated
-        # manifest.json behind.
-        try:
-            # no '\r\n' on Windows, the file is the same everywhere
-            with open(tmpname, 'w', encoding='utf-8', newline='\n') as f:
-                f.write(buf)
-                f.flush()
-                os.fsync(f.fileno())
+        # Nothing changed, keep the backup of the version before. add
+        # saves even when there was nothing new to add.
+        if self.raw is not None and buf != self.raw:
+            save_file(VRFDIR_BACKUP_PATH, VRFDIR_BACKUP_TMP_PATH,
+                      self.backup_json())
 
-            replace_file(tmpname, filename)
-        except BaseException:
-            # don't leave a partial temporary file behind
-            try:
-                os.unlink(tmpname)
-            except OSError:
-                pass
+        save_file(VRFDIR_MANIFEST_PATH, VRFDIR_MANIFEST_TMP_PATH, buf)
 
-            raise
+        # the saved file is the base of the next write
+        self.raw = buf
+        self.legacy = False
+        self.path = VRFDIR_MANIFEST_PATH
 
         # Only after the new file is in place, so that there is always
         # a complete repository. manifest.json is read first, so a
@@ -1104,6 +1133,9 @@ class VrfdirRepo:
         self.files = {}
         self.legacy = legacy
         self.path = VRFDIR_LEGACY_PATH if legacy else VRFDIR_MANIFEST_PATH
+
+        # the text of the file as it was read, None for a new repository
+        self.raw = buf
 
         # the checksum of the content, None until it is read or written
         # and in a manifest of an older version
@@ -1506,6 +1538,11 @@ command verifies it when it reads the repository. If it does not
 match, manifest.json is damaged, not the files, and the command
 stops with an error (exit code 3). Restore manifest.json from a
 backup then.
+
+Every command which saves the repository keeps the previous version
+as .vrfdir/manifest.json.bak, which is one save old. Renaming it to
+manifest.json restores the repository, without the files added or
+upgraded in the last save.
 
 A repository from an older vrfdir has the MD5 checksum of the files
 it added. They are still checked as before, run 'vrfdir upgrade' to

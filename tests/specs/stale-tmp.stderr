@@ -1,4 +1,5 @@
 Warning: .vrfdir/manifest.json.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
 Warning: .vrfdir/manifest.json.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
+Warning: .vrfdir/manifest.json.bak.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
 Warning: .vrfdir/manifest.json.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
 Error: cannot save the repository .vrfdir/manifest.json: Is a directory, the added files were not saved

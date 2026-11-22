@@ -348,7 +348,8 @@ def test_write_replaces_hashes_json(vrfdir, workdir):
     repo.files['b'] = {'checksum': MD5_A, 'size': 1}
     repo.write()
 
-    assert sorted(os.listdir('.vrfdir')) == ['manifest.json']
+    assert sorted(os.listdir('.vrfdir')) == ['manifest.json',
+                                             'manifest.json.bak']
     assert sorted(vrfdir.VrfdirRepo.open().files) == ['a', 'b']
 
 

@@ -652,8 +652,12 @@ def test_open_reads_the_legacy_file_and_write_converts_it(
 
     repo.write()
 
-    assert os.listdir('.vrfdir') == ['manifest.json']
+    # the backup is the old file converted, the content is the same
+    assert sorted(os.listdir('.vrfdir')) == ['manifest.json',
+                                             'manifest.json.bak']
     with open('.vrfdir/manifest.json') as f:
+        assert f.read() == CONVERTED
+    with open('.vrfdir/manifest.json.bak') as f:
         assert f.read() == CONVERTED
 
     again = vrfdir.VrfdirRepo.open()

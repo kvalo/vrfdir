@@ -19,6 +19,9 @@ project adheres to [Semantic Versioning][semver].
   error about manifest.json, not a corrupted file. `vrfdir info`
   shows the checksum. A repository of an older format is converted
   by the next command which saves it, for example `vrfdir upgrade`.
+- Every save keeps the previous manifest.json as
+  `.vrfdir/manifest.json.bak`. An old `hashes.json` is kept there in
+  the format of manifest.json.
 
 ### Changed
 

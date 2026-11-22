@@ -54,6 +54,16 @@ Largest files:
         5 B  dir/b
         5 B  g
 manifest.json
+manifest.json.bak
+
+the backup is the old file in the format of manifest.json, without g
+md5:ec1ac12ab85dbcdbf7b3b506314fe9b4  5            KEVM-CM-^DT
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a
+md5:b6b577fd12aa7e1df8d60735ef56fc2e  5            back\slash
+md5:9448a1bf333fadd2a57965ec38487b89  5            dir/b
+md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
+md5:9a1975c687792ca7311e5553d63c6de0  5            iso8859-1: M-D
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            space name
 
 upgrade does not replace the checksum of a corrupted file
 M a

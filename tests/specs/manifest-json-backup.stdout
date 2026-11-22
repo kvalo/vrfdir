@@ -1,0 +1,17 @@
+a new repository has no backup
+manifest.json
+the first add keeps the empty repository
+manifest.json
+manifest.json.bak
+vrfdir list of the backup
+the next add keeps the version with a
+vrfdir list of the backup
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+nothing new to add, the backup is not changed
+manifest.json is damaged
+exit value: 3
+the backup restores the repository, one save old
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+exit value: 0
+? b
+exit value: 1

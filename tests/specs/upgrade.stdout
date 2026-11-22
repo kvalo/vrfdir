@@ -109,6 +109,7 @@ the old name is removed
 repository converted to the latest format (version 3)
 exit value: 0
 manifest.json
+manifest.json.bak
 [{"version": 3, "checksum": "sha256:05b7184ec4debc87f91316a7a72cb1708e67bc7c1487857ea4ec8d18bad308a7", "files": {}}]
 and the next upgrade does not write
 exit value: 0

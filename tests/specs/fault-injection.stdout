@@ -16,19 +16,36 @@ add: the first file is deleted just before it is hashed
 vrfdir list
 sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
 sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            c
+add: full disk when saving the backup, nothing is saved
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+ls .vrfdir
+manifest.json
+manifest.json.bak
+vrfdir list of the backup
 add: full disk when saving, nothing is saved
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
 manifest.json
+manifest.json.bak
+vrfdir list of the backup
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 add: Ctrl-C when the directory is read, the repository is intact
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+add: Ctrl-C when saving the backup, manifest.json is not changed
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+ls .vrfdir
+manifest.json
+manifest.json.bak
 add: Ctrl-C when saving, manifest.json is the old complete file
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
 manifest.json
+manifest.json.bak
 status: Ctrl-C when the directory is read
 a bug in check
 a bug in add
