@@ -17,4 +17,4 @@ project adheres to [Semantic Versioning][semver].
 
 ### Added
 
-- `--version` option.
+- First release.
