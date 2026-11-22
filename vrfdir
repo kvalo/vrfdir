@@ -928,6 +928,19 @@ class VrfdirRepo:
         for key in self.foreign:
             yield (foreign_name(key), self.foreign[key])
 
+    # The same, sorted by the bytes of the name in manifest.json so that
+    # the order does not depend on the locale or on the order the files
+    # were added.
+    def sorted_entries(self):
+        keyed = [(name_to_json(name).encode('utf-8', 'surrogateescape'),
+                  name, self.files[name]) for name in self.files]
+        keyed += [(key.encode('utf-8', 'surrogateescape'),
+                   foreign_name(key), self.foreign[key])
+                  for key in self.foreign]
+        keyed.sort(key=lambda e: e[0])
+
+        return [(name, entry) for (_, name, entry) in keyed]
+
     @staticmethod
     def open():
         filename = VRFDIR_MANIFEST_PATH
@@ -1166,7 +1179,7 @@ def cmd_list(args):
 
     repo = open_repo()
 
-    for (name, entry) in repo.entries():
+    for (name, entry) in repo.sorted_entries():
         print_named('%s  %-12d ' % (entry['checksum'], entry['size']), name)
 
 
@@ -1184,7 +1197,7 @@ def cmd_export(args):
                      md5_files)
         sys.exit(EXIT_ERROR)
 
-    for (name, entry) in repo.entries():
+    for (name, entry) in repo.sorted_entries():
         print_named('%s  ' % split_checksum(entry['checksum'])[1], name)
 
 
@@ -1539,10 +1552,11 @@ exit codes:
 
 HELP_LIST = '''\
 Print the checksum, the size in bytes and the name of every added
-file, one file per line. The checksum starts with its algorithm,
-sha256: or md5: (files added by an older vrfdir). The files are not
-read, the output is what was stored when they were added. A name with
-a newline is escaped, see 'vrfdir --help'.
+file, one file per line, sorted by the bytes of the name. The
+checksum starts with its algorithm, sha256: or md5: (files added by an
+older vrfdir). The files are not read, the output is what was stored
+when they were added. A name with a newline is escaped, see 'vrfdir
+--help'.
 
 exit codes:
   0    the files were printed
@@ -1554,9 +1568,10 @@ exit codes:
 
 HELP_EXPORT = '''\
 Print the SHA-256 checksum and the name of every added file in the
-format of sha256sum. The files are not read, the output is what was
-stored when they were added. A name with a newline is escaped like
-sha256sum does. With it the files can be verified without vrfdir:
+format of sha256sum, sorted by the bytes of the name. The files are
+not read, the output is what was stored when they were added. A name
+with a newline is escaped like sha256sum does. With it the files can
+be verified without vrfdir:
 
   vrfdir export | sha256sum -c
 

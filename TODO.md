@@ -5,19 +5,6 @@ SPDX-FileCopyrightText: 2026 Kalle Valo
 SPDX-License-Identifier: GPL-3.0-or-later
 -->
 
-## list and export: sort the output
-
-Both print the files in the order they are in manifest.json, which
-is the order add found them. That follows the directory order of
-the filesystem, so the same data gives a different listing on
-another machine, and the order changed once already when
-find_files() replaced os.walk().
-
-Sorting by name would make the output stable and is needed for the
-"detect corruption in manifest.json" item below. It changes the output
-for existing users, the tests which use list need new expected
-files.
-
 ## lock the repository
 
 Nothing prevents two vrfdir processes from changing the same

@@ -8,8 +8,8 @@ iso8859-1-a-with-diaeresis:\ \304
 unknown-\366
 
 vrfdir list
-sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           iso8859-1-a-with-diaeresis: M-D
 sha256:63d19a99ef7db94ddbb1e4a5083062226551cd8197312e3aa0aa7c369ac3e458  11           dir-M-d/KEVM-CM-^DT-M-D
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           iso8859-1-a-with-diaeresis: M-D
 
 vrfdir status
 ? unknown-M-v

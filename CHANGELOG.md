@@ -12,6 +12,11 @@ project adheres to [Semantic Versioning][semver].
 
 ## [Unreleased]
 
+### Changed
+
+- `vrfdir list` and `vrfdir export` print the files sorted by the
+  bytes of the name, not in the order they were added.
+
 ## [0.1.0] - 2026-11-22
 
 ### Added

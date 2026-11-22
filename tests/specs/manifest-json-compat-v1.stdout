@@ -19,13 +19,13 @@ vrfdir check, the MD5 checksums are checked
 exit value: 0
 
 vrfdir list
-md5:e5828c564f71fea3a12dde8bd5d27063  5            a
-md5:9448a1bf333fadd2a57965ec38487b89  5            dir/b
-md5:b26795c69684a7c9cc4a94ff70a95b71  5            space name
-md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
 md5:ec1ac12ab85dbcdbf7b3b506314fe9b4  5            KEVM-CM-^DT
-md5:9a1975c687792ca7311e5553d63c6de0  5            iso8859-1: M-D
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a
 md5:b6b577fd12aa7e1df8d60735ef56fc2e  5            back\slash
+md5:9448a1bf333fadd2a57965ec38487b89  5            dir/b
+md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
+md5:9a1975c687792ca7311e5553d63c6de0  5            iso8859-1: M-D
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            space name
 
 export cannot print the MD5 checksums for sha256sum
 Error: cannot export the checksums: 7 file(s) still have an MD5 checksum. Run 'vrfdir upgrade' first
@@ -42,14 +42,14 @@ reading does not touch the file
 adding converts the file, the old files keep the MD5 checksum
 "version": 2
 0
-md5:e5828c564f71fea3a12dde8bd5d27063  5            a
-md5:9448a1bf333fadd2a57965ec38487b89  5            dir/b
-md5:b26795c69684a7c9cc4a94ff70a95b71  5            space name
-md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
 md5:ec1ac12ab85dbcdbf7b3b506314fe9b4  5            KEVM-CM-^DT
-md5:9a1975c687792ca7311e5553d63c6de0  5            iso8859-1: M-D
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a
 md5:b6b577fd12aa7e1df8d60735ef56fc2e  5            back\slash
+md5:9448a1bf333fadd2a57965ec38487b89  5            dir/b
+md5:d41d8cd98f00b204e9800998ecf8427e  0            empty
 sha256:834b95995f81b51169761a0aa3744ef141c7ea529b9a9a4ea4b0cfba72057f3b  5            g
+md5:9a1975c687792ca7311e5553d63c6de0  5            iso8859-1: M-D
+md5:b26795c69684a7c9cc4a94ff70a95b71  5            space name
 M a
 1 file(s) modified
 exit value: 2
