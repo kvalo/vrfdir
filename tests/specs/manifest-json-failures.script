@@ -8,9 +8,19 @@
 
 cd "$DATADIR" || exit 1
 
+# With the argument "nopos" the position of a JSON error is removed from
+# the message: Python 3.14 and later report it also for the deep
+# nesting, earlier ones give up with a RecursionError and report none.
 check_status() {
-    "$SRCDIR/vrfdir" status
+    "$SRCDIR/vrfdir" status 2> status.err
     retval=$?
+
+    if [ "$1" = nopos ]; then
+        sed 's/ (line [0-9]*, column [0-9]*)//' status.err >&2
+    else
+        cat status.err >&2
+    fi
+    rm -f status.err
 
     if [ $retval != 3 ]; then
         echo Wrong exit value: $retval
@@ -111,7 +121,7 @@ check_status
 # too deep for the json module, must not be an internal error
 echo deep nesting
 head -c 100000 /dev/zero | tr '\0' '[' > .vrfdir/manifest.json
-check_status
+check_status nopos
 
 # Note: this does not work as root, which can read the file anyway.
 echo no permission
