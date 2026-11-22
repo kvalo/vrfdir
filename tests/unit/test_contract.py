@@ -181,3 +181,12 @@ def test_main_a_bug_is_not_exit_code_1(vrfdir, main):
     assert code == vrfdir.EXIT_ERROR
     assert code != vrfdir.EXIT_DIFFERENCES
     assert messages == ['internal error, this is a bug in vrfdir']
+
+
+def test_version_string(vrfdir):
+    version = vrfdir.version_string()
+    if vrfdir.VERSION.endswith('+git'):
+        assert re.fullmatch(re.escape(vrfdir.VERSION) + r'\.[0-9a-f]{8}',
+                            version)
+    else:
+        assert version == vrfdir.VERSION

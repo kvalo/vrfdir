@@ -29,6 +29,24 @@ VRFDIR_MANIFEST_TMP_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_TMP)
 # released, see CHANGELOG.md.
 VERSION = '0.1.0+git'
 
+
+def version_string():
+    '''Return VERSION, with a short hash of this script for git builds.
+
+    A git build has the same VERSION for many revisions, so the hash
+    lets a bug report be matched to the exact script.
+    '''
+
+    if not VERSION.endswith('+git'):
+        return VERSION
+    try:
+        with open(__file__, 'rb') as f:
+            digest = hashlib.sha256(f.read()).hexdigest()[:8]
+    except OSError:
+        digest = 'nohash'
+    return '%s.%s' % (VERSION, digest)
+
+
 MANIFEST_VERSION = 2
 
 # The manifest.json of this version has the MD5 checksum in the 'md5sum'
@@ -1686,7 +1704,7 @@ def run_command():
     parser.add_argument('-d', '--debug', action='store_true',
                         help='print debug messages to stderr')
     parser.add_argument('--version', action='version',
-                        version='%(prog)s ' + VERSION,
+                        version='%(prog)s ' + version_string(),
                         help='print the version and exit')
     subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
                                        dest='command', required=True)
