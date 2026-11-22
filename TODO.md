@@ -78,15 +78,6 @@ but the help texts do not say it. Decide, document it in the help
 text of add and test it. tests/specs-linux/case-names.script records
 what happens now.
 
-## every time manifest.json is modified, create a backup file
-
-For example: manifest.json.201412241311
-
-If the file already exists, just overwrite it. One backup file per
-minute is enough.
-
-Maybe these should be in a separate directory?
-
 ## implement 'vrfdir refresh'
 
 The refresh command updates all changes (deletions, checksum
