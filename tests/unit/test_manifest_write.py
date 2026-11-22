@@ -1,7 +1,10 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import errno
 import json
+import os
+import stat
 import sys
 
 import pytest
@@ -153,3 +156,50 @@ def test_write_with_a_wrong_checksum_keeps_the_old_file(
 
     assert read(vrfdir.VRFDIR_MANIFEST_PATH) == before
     assert not (workdir / vrfdir.VRFDIR_MANIFEST_TMP_PATH).exists()
+
+
+def directory_fsyncs(vrfdir, monkeypatch, error=None):
+    real_fsync = vrfdir.os.fsync
+    calls = []
+
+    def fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            calls.append(os.fstat(fd).st_ino)
+            if error is not None:
+                raise OSError(error, os.strerror(error))
+        real_fsync(fd)
+
+    monkeypatch.setattr(vrfdir.os, 'fsync', fsync)
+
+    return calls
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX directories')
+def test_write_flushes_the_directory(vrfdir, workdir, monkeypatch):
+    calls = directory_fsyncs(vrfdir, monkeypatch)
+
+    vrfdir.VrfdirRepo().write()
+
+    assert calls == [os.stat('.vrfdir').st_ino]
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX directories')
+def test_directory_which_cannot_be_flushed_is_ignored(vrfdir, workdir,
+                                                      monkeypatch):
+    calls = directory_fsyncs(vrfdir, monkeypatch, errno.EINVAL)
+
+    vrfdir.VrfdirRepo().write()
+
+    assert len(calls) == 1
+    assert (workdir / vrfdir.VRFDIR_MANIFEST_PATH).exists()
+
+
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX directories')
+def test_directory_flush_error_says_the_file_is_saved(vrfdir, workdir,
+                                                      monkeypatch):
+    directory_fsyncs(vrfdir, monkeypatch, errno.EIO)
+
+    with pytest.raises(vrfdir.VrfdirError, match='is saved in'):
+        vrfdir.VrfdirRepo().write()
+
+    assert vrfdir.VrfdirRepo.open().files == {}

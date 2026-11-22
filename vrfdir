@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import argparse
+import errno
 import hashlib
 import heapq
 import itertools
@@ -403,6 +404,24 @@ def save_file(filename, tmpname, buf, verify=None):
             pass
 
         raise
+
+
+# A rename is a change of the directory, which has to be flushed too,
+# or after a power cut the directory can still have the old file.
+# Windows cannot open a directory for this, there it is skipped.
+def fsync_directory(path):
+    if sys.platform == 'win32':
+        return
+
+    fd = os.open(path, os.O_RDONLY)
+    try:
+        os.fsync(fd)
+    except OSError as e:
+        # the filesystem cannot flush a directory
+        if e.errno != errno.EINVAL:
+            raise
+    finally:
+        os.close(fd)
 
 
 class ProgressMeter:
@@ -1144,6 +1163,15 @@ class VrfdirRepo:
         self.raw = buf
         self.legacy = False
         self.path = VRFDIR_MANIFEST_PATH
+
+        # the renames of the backup and of manifest.json
+        try:
+            fsync_directory(VRFDIR_DIRECTORY)
+        except OSError as e:
+            raise VrfdirError('the repository is saved in %s but cannot '
+                              'flush the directory %s to the disk: %s' %
+                              (VRFDIR_MANIFEST_PATH, VRFDIR_DIRECTORY,
+                               error_reason(e)))
 
         # Only after the new file is in place, so that there is always
         # a complete repository. manifest.json is read first, so a

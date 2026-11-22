@@ -7,6 +7,7 @@ Error: cannot save the repository .vrfdir/manifest.json: No space left on device
 Error: cannot save the repository .vrfdir/manifest.json: No space left on device, the added files were not saved
 Error: cannot save the repository .vrfdir/manifest.json: the data read back from the new .vrfdir/manifest.json.bak differs from what was written, the added files were not saved
 Error: cannot save the repository .vrfdir/manifest.json: the data read back from the new .vrfdir/manifest.json differs from what was written, the added files were not saved
+Error: the repository is saved in .vrfdir/manifest.json but cannot flush the directory .vrfdir to the disk: No space left on device
 Error: cannot save the repository .vrfdir/manifest.json: the data read back from the new .vrfdir/manifest.json differs from what was written
 Error: interrupted, the files added so far were saved
 Error: interrupted

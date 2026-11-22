@@ -26,6 +26,9 @@ project adheres to [Semantic Versioning][semver].
   checksum of manifest.json verified, before they replace the old
   files. A file which does not read back as it was written is an
   error and the old file stays.
+- The `.vrfdir` directory is flushed to the disk after a save, so
+  that the new manifest.json is still there after a power cut. Not
+  on Windows, which cannot do it.
 
 ### Changed
 
