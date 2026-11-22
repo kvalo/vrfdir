@@ -42,8 +42,9 @@ checksums), the tests use them to check that.
   is installed, yamllint (config in `.yamllint`) on the GitHub
   workflow
 - CI: `.github/workflows/ci.yml` runs `./check`, `./unit` and `./lint`
-  on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15. It
-  installs `cmdspecs` from a pinned tag, bump the tag when needed
+  on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15 and
+  on macOS (`macos-latest`, with GNU coreutils and sed from brew).
+  It installs `cmdspecs` from a pinned tag, bump the tag when needed
 
 There is no build step. The scripts have no file extensions to glob on,
 so when you add a new Python or shell script, or a markdown file, add

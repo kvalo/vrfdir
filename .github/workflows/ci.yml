@@ -62,3 +62,25 @@ jobs:
         run: ./check
       - name: Run unit tests
         run: ./unit
+
+  test-macos:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install GNU tools
+        # The tests use sha256sum, md5sum, ls --escape and sed -i of
+        # GNU coreutils and sed, macOS has the BSD versions.
+        run: |
+          brew install coreutils gnu-sed
+          prefix="$(brew --prefix)"
+          echo "$prefix/opt/coreutils/libexec/gnubin" >> "$GITHUB_PATH"
+          echo "$prefix/opt/gnu-sed/libexec/gnubin" >> "$GITHUB_PATH"
+      - name: Install cmdspecs and pytest
+        run: pip install "$CMDSPECS" pytest
+      - name: Run tests
+        run: ./check --portable
+      - name: Run unit tests
+        run: ./unit
