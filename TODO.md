@@ -118,6 +118,10 @@ naturally show them also in info command
 Make it possible to remove files from json. Also can take
 directories as argument.
 
+Until then there is no way to remove a file: manifest.json has a
+checksum of its content and vrfdir refuses a manifest.json which was
+edited by hand.
+
 ## add syslog support
 
 Make it possible to send logs to syslog, could be enabled like with
@@ -232,26 +236,3 @@ or say it in a bug report.
 Choose a version scheme, store the version in the vrfdir file and
 show it with 'vrfdir --version'. Tag the releases in git with the
 same version.
-
-## detect corruption in manifest.json
-
-vrfdir finds corruption in the added files but nothing protects
-manifest.json itself. A change which breaks the JSON is noticed, as
-the file cannot be loaded, but a flipped bit inside a checksum, a
-size or a name is not. Then check blames the file, which is
-intact, and nothing tells that the fault is in manifest.json.
-
-Find a way to detect this, with a checksum of the content or
-something else, and verify it every time manifest.json is read. The
-error message should say clearly that manifest.json is corrupted, not
-the files.
-
-Show the checksum also in the info command.
-
-One idea for the checksum: calculate it from the cmd_list() output
-with the list sorted by file name, and maybe move the name to the
-first column. Store it in manifest.json and also show it with the
-info command.
-
-Related to the backup file item above, a backup is what the user
-needs when this happens.
