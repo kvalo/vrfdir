@@ -234,10 +234,13 @@ like `v0.1.0`.
    tag; remind the user instead.
 4. Once the tag is on origin, ask, then create the GitHub release:
    save the `[X.Y.Z]` section of CHANGELOG.md, without its heading,
-   to a scratchpad file and run
+   to a scratchpad file, and save the `vrfdir` script of the tag
+   (`git show vX.Y.Z:vrfdir`, executable) to a scratchpad file named
+   `vrfdir`, so that the asset is the same as the tagged commit. Run
    `gh release create vX.Y.Z --verify-tag --title "vrfdir vX.Y.Z"
-   --notes-file <file>`. `--verify-tag` makes it fail when the tag has
-   not been pushed.
+   --notes-file <file> <scratchpad>/vrfdir`. `--verify-tag` makes it
+   fail when the tag has not been pushed. The script is attached as a
+   release asset so that users can download it directly.
 5. Once `origin/main` and the tag are on the release commit, make the
    post-release commit, subject `vrfdir: mark version as X.Y.Z+git`:
    set `VERSION` to `X.Y.Z+git`, add `## [Unreleased]` back above
