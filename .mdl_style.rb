@@ -2,6 +2,9 @@
 
 all
 
+# The default style rejects ordered lists which are numbered 1, 2, 3.
+rule 'MD029', :style => :ordered
+
 # Documentation lines are at most 72 columns, long table rows and
 # commands are accepted.
 rule 'MD013', :line_length => 72, :ignore_code_blocks => true, :tables => false

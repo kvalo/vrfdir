@@ -178,6 +178,52 @@ output files (`.stdout`, `.stderr`, `.exit`), `tests/data/*.json`, the
 configuration dotfiles (`.flake8`, `.mdlrc`, `.mdl_style.rb`,
 `.gitignore`) and the license text in `LICENSES/`.
 
+## Release process
+
+The version is only in `VERSION` in `vrfdir`, and CHANGELOG.md has a
+heading for it. Between releases the version is `<release>+git` and
+CHANGELOG.md has an `## [Unreleased]` heading above the last release.
+`test_changelog_matches_version` checks that they match. The version
+has nothing to do with `MANIFEST_VERSION`.
+
+The user pushes to `main` and tags. Claude prepares the commits,
+creates the GitHub release with `gh` (after asking) and reminds the
+user of the other steps. Version numbers look like `0.1.0` and tags
+like `v0.1.0`.
+
+1. Make the release commit, subject `vrfdir: release vX.Y.Z`:
+   - Replace the `+git` version with `X.Y.Z` in `VERSION` in `vrfdir`.
+   - In CHANGELOG.md, rename `[Unreleased]` to `[X.Y.Z] - YYYY-MM-DD`.
+     Do not leave an empty `[Unreleased]` heading in the release
+     commit.
+   - Fix the link references at the bottom: remove `[Unreleased]` and
+     add
+     `[X.Y.Z]: https://github.com/kvalo/vrfdir/compare/vPREV...vX.Y.Z`
+     (the first release has
+     `https://github.com/kvalo/vrfdir/releases/tag/vX.Y.Z`).
+   - Run `./check`, `./unit` and `./lint`.
+2. Test that exact commit on Windows and macOS by hand, as nothing
+   checks the code for them (see Constraints). If the commit changes
+   afterwards, e.g. by amending, the tag must point at the new hash.
+   Once there is CI, push the commit to `staging` (ask first) and
+   wait for it with `gh run watch` as well.
+3. The user signs and tags the exact commit which was tested, e.g.
+   `git tag -s vX.Y.Z <hash> -m "vrfdir vX.Y.Z"`, and pushes the
+   commit and the tag to `main`. Never push to `main` or create the
+   tag; remind the user instead.
+4. Once the tag is on origin, ask, then create the GitHub release:
+   save the `[X.Y.Z]` section of CHANGELOG.md, without its heading,
+   to a scratchpad file and run
+   `gh release create vX.Y.Z --verify-tag --title "vrfdir vX.Y.Z"
+   --notes-file <file>`. `--verify-tag` makes it fail when the tag has
+   not been pushed.
+5. Once `origin/main` and the tag are on the release commit, make the
+   post-release commit, subject `vrfdir: mark version as X.Y.Z+git`:
+   set `VERSION` to `X.Y.Z+git`, add `## [Unreleased]` back above
+   `[X.Y.Z]` in CHANGELOG.md and its
+   `[Unreleased]: .../compare/vX.Y.Z...HEAD` link reference. Run
+   `./check`, `./unit` and `./lint`.
+
 ## Commits
 
 Subject is `<component>: <lowercase imperative summary>` without a
