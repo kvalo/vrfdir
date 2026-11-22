@@ -7,12 +7,17 @@ SPDX-License-Identifier: GPL-3.0-or-later
 
 ## sha256sum -c on Ubuntu 26.04
 
-In `filenames-newline` the exported name `back\nslash` (a backslash
-and an n, no leading backslash on the line) is read back by
-`sha256sum -c` of Ubuntu 26.04 as a name with a newline, so the test
-fails there. It passes on 24.04, which is why the CI runs on that. Find
-out if it is a change in coreutils or a bug in the export format, and
-then make the CI use `ubuntu-latest` again.
+Ubuntu 26.04 has the sha256sum of uutils coreutils (0.10.0), not the
+GNU one. It reads a line without the backslash marker with the name
+unescaped (`back\nslash` becomes a name with a newline), and it does
+not accept a line with the marker at all, not even one which it wrote
+itself ("no properly formatted checksum lines found"). So
+`vrfdir export | sha256sum -c` cannot work for a name with a newline
+or a backslash there, whatever vrfdir prints, and `filenames-newline`
+and two `manifest-json-compat` tests fail. This is a bug of uutils, so
+the CI matrix runs on ubuntu-24.04 until it is fixed. Report it to
+uutils, and when a newer version works, make the CI use `ubuntu-latest`
+again.
 
 ## lock the repository
 
