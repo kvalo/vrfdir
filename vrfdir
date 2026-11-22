@@ -27,7 +27,7 @@ VRFDIR_MANIFEST_TMP_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_TMP)
 # The release of vrfdir, following Semantic Versioning. It has nothing to
 # do with MANIFEST_VERSION. '+git' marks a version which is not
 # released, see CHANGELOG.md.
-VERSION = '0.1.0'
+VERSION = '0.1.0+git'
 
 MANIFEST_VERSION = 2
 
