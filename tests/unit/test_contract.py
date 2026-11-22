@@ -66,13 +66,12 @@ def test_changelog_matches_version(vrfdir):
     with open('%s/CHANGELOG.md' % SRCDIR) as f:
         headings = re.findall(r'^## \[([^\]]+)\]', f.read(), re.MULTILINE)
 
-    assert headings[0] == 'Unreleased'
-
+    # a git build has Unreleased at the top, a released version has its
+    # own section there, the release commit has no empty Unreleased
     if vrfdir.VERSION.endswith('+git'):
-        return
-
-    # a released version has its own section right below Unreleased
-    assert headings[1] == vrfdir.VERSION
+        assert headings[0] == 'Unreleased'
+    else:
+        assert headings[0] == vrfdir.VERSION
 
 
 def exit_calls():
