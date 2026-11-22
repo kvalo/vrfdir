@@ -2,6 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 
 import json
+import sys
 
 import pytest
 
@@ -98,3 +99,57 @@ def test_no_temporary_files_are_left(vrfdir, workdir):
 
     assert sorted(p.name for p in (workdir / '.vrfdir').iterdir()) == \
         ['manifest.json', 'manifest.json.bak']
+
+
+# os.pwrite() is not on Windows
+@pytest.mark.skipif(sys.platform == 'win32', reason='needs os.pwrite()')
+def test_write_which_does_not_read_back_keeps_the_old_file(
+        vrfdir, workdir, monkeypatch):
+    vrfdir.VrfdirRepo().write()
+    before = read(vrfdir.VRFDIR_MANIFEST_PATH)
+    repo = vrfdir.VrfdirRepo.open()
+    repo.files['a'] = entry()
+
+    real_fsync = vrfdir.os.fsync
+
+    # the file changes after it was written
+    def corrupt(fd):
+        vrfdir.os.pwrite(fd, b'X', 0)
+        real_fsync(fd)
+
+    monkeypatch.setattr(vrfdir.os, 'fsync', corrupt)
+
+    with pytest.raises(vrfdir.SaveVerifyError):
+        repo.write()
+
+    assert read(vrfdir.VRFDIR_MANIFEST_PATH) == before
+    assert sorted(p.name for p in (workdir / '.vrfdir').iterdir()) == \
+        ['manifest.json']
+
+
+def test_write_with_a_wrong_checksum_keeps_the_old_file(
+        vrfdir, workdir, monkeypatch):
+    vrfdir.VrfdirRepo().write()
+    before = read(vrfdir.VRFDIR_MANIFEST_PATH)
+    repo = vrfdir.VrfdirRepo.open()
+    repo.files['a'] = entry()
+
+    # The file is written as it was meant to be, but the checksum in
+    # it is not the one of the content, like with a bug in dump_json().
+    real_checksum = vrfdir.manifest_checksum
+    calls = []
+
+    def first_wrong(version, files):
+        calls.append(version)
+        checksum = real_checksum(version, files)
+        if len(calls) == 1:
+            checksum = checksum[:-1] + ('0' if checksum[-1] != '0' else '1')
+        return checksum
+
+    monkeypatch.setattr(vrfdir, 'manifest_checksum', first_wrong)
+
+    with pytest.raises(vrfdir.SaveVerifyError):
+        repo.write()
+
+    assert read(vrfdir.VRFDIR_MANIFEST_PATH) == before
+    assert not (workdir / vrfdir.VRFDIR_MANIFEST_TMP_PATH).exists()

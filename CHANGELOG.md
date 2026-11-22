@@ -22,6 +22,10 @@ project adheres to [Semantic Versioning][semver].
 - Every save keeps the previous manifest.json as
   `.vrfdir/manifest.json.bak`. An old `hashes.json` is kept there in
   the format of manifest.json.
+- A saved manifest.json and its backup are read back, and the
+  checksum of manifest.json verified, before they replace the old
+  files. A file which does not read back as it was written is an
+  error and the old file stays.
 
 ### Changed
 

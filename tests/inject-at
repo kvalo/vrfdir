@@ -22,11 +22,15 @@
 #   eio-fsencode    the Nth os.fsencode() fails with EIO and a file
 #                   name, which no command catches itself
 #   enospc-fsync    the Nth os.fsync() fails with ENOSPC, which is
-#                   how a full disk shows when hashes.json.tmp is
-#                   written
+#                   how a full disk shows when manifest.json.tmp or
+#                   manifest.json.bak.tmp is written
+#   corrupt-fsync   the first byte of the file of the Nth os.fsync()
+#                   is changed just before it, so that the file does
+#                   not read back as it was written
 #   sigint-scandir  SIGINT is sent when the Nth directory is read
 #   sigint-replace  SIGINT is sent when the Nth file is renamed over
-#                   another one, which is how hashes.json is saved
+#                   another one, which is how manifest.json and its
+#                   backup are saved
 
 import errno
 import hashlib
@@ -40,14 +44,21 @@ EXIT_HOOK_NOT_REACHED = 70
 
 
 def fail_with(exception):
-    def action():
+    def action(*args):
         raise exception
 
     return action
 
 
-def send_sigint():
+def send_sigint(*args):
     os.kill(os.getpid(), signal.SIGINT)
+
+
+# Change the first byte of the file which is about to be fsynced, as
+# if the data was damaged on the way to the file. The file is open
+# only for writing, but every file vrfdir saves starts with '['.
+def corrupt_file(fd):
+    os.pwrite(fd, b'X', 0)
 
 
 # Python itself calls os.stat() with absolute paths, for example to
@@ -110,8 +121,9 @@ def always(args):
 
 
 # KIND: (module, function, action, counted). The action is called
-# before the function on the Nth call counted(args) is true for. The
-# signal ones do not stop the function itself.
+# with the arguments of the function before it, on the Nth call
+# counted(args) is true for. The signal ones and corrupt-fsync do not
+# stop the function itself.
 def kinds():
     eio = OSError(errno.EIO, os.strerror(errno.EIO))
     enoent = FileNotFoundError(errno.ENOENT, os.strerror(errno.ENOENT))
@@ -130,6 +142,7 @@ def kinds():
         'eio-entry': (os, 'scandir', None, always),
         'eio-fsencode': (os, 'fsencode', fail_with(eio_name), always),
         'enospc-fsync': (os, 'fsync', fail_with(enospc), always),
+        'corrupt-fsync': (os, 'fsync', corrupt_file, always),
         'sigint-scandir': (os, 'scandir', send_sigint, always),
         'sigint-replace': (os, 'replace', send_sigint, always),
     }
@@ -160,7 +173,7 @@ def main():
         if counted(args):
             count += 1
             if count == n:
-                action()
+                action(*args)
         return function(*args, **kwargs)
 
     setattr(module, name, faulty_scandir if action is None else hooked)

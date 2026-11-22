@@ -91,6 +91,27 @@ echo ls .vrfdir
 ls .vrfdir
 list_backup
 
+echo add: the backup does not read back as written, nothing is saved
+inject corrupt-fsync 1 3 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+list_backup
+
+echo add: manifest.json does not read back as written, nothing is saved
+inject corrupt-fsync 2 3 add --quiet b c
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo ls .vrfdir
+ls .vrfdir
+
+echo init: manifest.json does not read back as written
+mkdir init
+(cd init && inject corrupt-fsync 1 3 init)
+ls -A init/.vrfdir
+rm -r init
+
 echo add: Ctrl-C when the directory is read, the repository is intact
 inject sigint-scandir 1 130 add --quiet .
 echo vrfdir list

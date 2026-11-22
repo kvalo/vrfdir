@@ -364,7 +364,14 @@ def replace_file(src, dst):
 
 # Write to a temporary file first and rename it over the old one, so
 # that an interrupted write never leaves a truncated file behind.
-def save_file(filename, tmpname, buf):
+#
+# The temporary file is read back before the rename, and verify(text)
+# can check its content further, so that a file which was not written
+# correctly never replaces the old one. After the fsync the data
+# normally comes from the cache of the operating system and not from
+# the disk: this catches a short or garbled write and a bug, not a
+# disk which damages the data later.
+def save_file(filename, tmpname, buf, verify=None):
     logger.debug('writing to %s: %s', filename, buf)
 
     try:
@@ -373,6 +380,19 @@ def save_file(filename, tmpname, buf):
             f.write(buf)
             f.flush()
             os.fsync(f.fileno())
+
+        with open(tmpname, 'rb') as f:
+            data = f.read()
+
+        ok = data == buf.encode('utf-8')
+        if ok and verify is not None:
+            ok = verify(data.decode('utf-8'))
+
+        if not ok:
+            raise SaveVerifyError('cannot save the repository %s: the data '
+                                  'read back from the new %s differs from '
+                                  'what was written' %
+                                  (VRFDIR_MANIFEST_PATH, filename))
 
         replace_file(tmpname, filename)
     except BaseException:
@@ -460,6 +480,11 @@ class ProgressMeter:
 
 # The message of this is printed to the user as it is.
 class VrfdirError(Exception):
+    pass
+
+
+# a saved file did not read back as it was written, see save_file()
+class SaveVerifyError(VrfdirError):
     pass
 
 
@@ -1103,7 +1128,17 @@ class VrfdirRepo:
             save_file(VRFDIR_BACKUP_PATH, VRFDIR_BACKUP_TMP_PATH,
                       self.backup_json())
 
-        save_file(VRFDIR_MANIFEST_PATH, VRFDIR_MANIFEST_TMP_PATH, buf)
+        # The saved file has to be read as the same repository: its
+        # checksum is checked by load_json() and has to be the one
+        # dump_json() calculated.
+        def checksum_matches(text):
+            try:
+                return VrfdirRepo(text).checksum == self.checksum
+            except VrfdirError:
+                return False
+
+        save_file(VRFDIR_MANIFEST_PATH, VRFDIR_MANIFEST_TMP_PATH, buf,
+                  checksum_matches)
 
         # the saved file is the base of the next write
         self.raw = buf
@@ -1176,9 +1211,14 @@ def open_repo():
 def write_repo(repo, note=None):
     try:
         repo.write()
-    except OSError as e:
-        message = 'cannot save the repository %s: %s' % (VRFDIR_MANIFEST_PATH,
-                                                         error_reason(e))
+    except (OSError, SaveVerifyError) as e:
+        # nothing was saved, the old file is still there
+        if isinstance(e, OSError):
+            message = 'cannot save the repository %s: %s' % \
+                (VRFDIR_MANIFEST_PATH, error_reason(e))
+        else:
+            message = '%s' % e
+
         if note is not None:
             message = '%s, %s' % (message, note)
 
@@ -1542,7 +1582,9 @@ backup then.
 Every command which saves the repository keeps the previous version
 as .vrfdir/manifest.json.bak, which is one save old. Renaming it to
 manifest.json restores the repository, without the files added or
-upgraded in the last save.
+upgraded in the last save. A new manifest.json is read back and its
+checksum verified before it replaces the old one, a file which does
+not read back as it was written is an error and nothing is saved.
 
 A repository from an older vrfdir has the MD5 checksum of the files
 it added. They are still checked as before, run 'vrfdir upgrade' to
