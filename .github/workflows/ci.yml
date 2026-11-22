@@ -63,6 +63,21 @@ jobs:
       - name: Run unit tests
         run: ./unit
 
+  test-arm:
+    # Not ubuntu-latest, see test-python.
+    runs-on: ubuntu-24.04-arm
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install cmdspecs and pytest
+        run: pip install "$CMDSPECS" pytest
+      - name: Run tests
+        run: ./check
+      - name: Run unit tests
+        run: ./unit
+
   test-macos:
     runs-on: macos-latest
     steps:
