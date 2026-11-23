@@ -19,8 +19,9 @@ a backup to restore a corrupted file from.
 - Python 3.11 or later
 - Linux, one of the BSDs, macOS or Windows
 
-vrfdir is developed and tested on Linux. The other systems are
-supported but tested less, see [Windows](#windows) below.
+vrfdir is developed on Linux, and its tests are run also on macOS and
+Windows. The BSDs are supported but tested less. See
+[Windows](#windows) below for the differences there.
 
 That is all. vrfdir is one file which uses only the Python standard
 library, there is nothing to build or install with pip.
@@ -135,6 +136,7 @@ Everything in [Requirements](#requirements) above, and in addition:
 | `cmdspecs`            | `./check`, a fork of cmdtest, has to be on `PATH` |
 | `bash`                | some of the tests, dash cannot create the file names they use |
 | `md5sum`, `sha256sum` and the other coreutils | the tests, they compare vrfdir's checksums with those commands |
+| Git for Windows       | the tests on Windows, run `./check` and `./unit` in its Git Bash, which has `sh` and the coreutils |
 | a UTF-8 locale        | running the tests                          |
 | `flake8`              | `./lint`                                   |
 | `shellcheck`          | `./lint`                                   |
@@ -152,16 +154,18 @@ needs nothing extra, the test data is created with the
     ./check                  # run all tests
     ./check -t status        # run one test, tests/specs/status.script
     ./check -k               # keep the temporary data of a failed test
-    ./check --portable       # only the tests for every system
+    ./check --portable       # only tests/specs, for every system
     ./coverage               # run all tests, show the lines not run
     ./lint                   # flake8, shellcheck, mdl and yamllint
     ./tests/benchmark        # simple_benchmark, see --help
 
-The tests are black-box: each `tests/specs/<name>.script` (and
-`tests/specs-linux/` and `tests/specs-macos/`, the ones which run only
-on Linux or macOS) is run and
+The tests are black-box: each `tests/specs/<name>.script` is run and
 its output and exit code are compared with the expected files next to
-it. See `./tests/benchmark --help` for the options of the benchmark.
+it. The tests in `tests/specs/` run on every system, the ones in
+`tests/specs-unix/`, `tests/specs-linux/`, `tests/specs-macos/`,
+`tests/specs-caseless/` and `tests/specs-windows/` only on the
+systems `./check` picks for them. See `./tests/benchmark --help` for
+the options of the benchmark.
 
 Known problems and plans are in [TODO.md](TODO.md).
 
