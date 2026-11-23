@@ -16,8 +16,10 @@ fi
 # links, named pipes, the error texts), so it runs everywhere except on
 # Windows. tests/specs-linux needs /dev/full, the error texts of Linux
 # and names which are not valid UTF-8, and tests/specs-macos the
-# behaviour of macOS, so each runs only on its system. --portable runs
-# only tests/specs.
+# behaviour of macOS, so each runs only on its system.
+# tests/specs-caseless needs a filesystem which ignores the case of the
+# names, as macOS and Windows have by default. --portable runs only
+# tests/specs.
 portable=
 n=$#
 while [ "$n" -gt 0 ]; do
@@ -35,8 +37,10 @@ set -- "$@" tests/specs
 if [ -z "$portable" ]; then
     case "$(uname -s)" in
         Linux) set -- "$@" tests/specs-unix tests/specs-linux ;;
-        Darwin) set -- "$@" tests/specs-unix tests/specs-macos ;;
-        MINGW* | MSYS*) ;;
+        Darwin)
+            set -- "$@" tests/specs-unix tests/specs-macos tests/specs-caseless
+            ;;
+        MINGW* | MSYS*) set -- "$@" tests/specs-caseless ;;
         *) set -- "$@" tests/specs-unix ;;
     esac
 fi

@@ -11,7 +11,7 @@ flake8 vrfdir tests/genbackupdata tests/benchmark tests/sigint-at tests/inject-a
     tests/unit/*.py
 
 shellcheck check coverage lint unit tests/specs/*.script tests/specs-unix/*.script \
-    tests/specs-linux/*.script tests/specs-macos/*.script
+    tests/specs-linux/*.script tests/specs-macos/*.script tests/specs-caseless/*.script
 
 # yamllint is optional.
 if command -v yamllint >/dev/null; then
