@@ -150,6 +150,12 @@ commands, signals, fault injection and unreadable files.
   only for one system, the user has to try it by hand.
 - The tests are run in a UTF-8 locale.
 
+## Command line options
+
+Every option has both a short and a long form (`-q`/`--quiet`,
+`-V`/`--version`), also the ones of the commands. Add both when you
+add an option, `test_options_have_short_and_long_forms` checks it.
+
 ## Help texts
 
 The help texts in `vrfdir` (the `HELP_*` descriptions and the `help=`

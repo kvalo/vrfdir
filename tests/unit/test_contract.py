@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import argparse
 import ast
 import logging
 import re
@@ -23,6 +24,34 @@ def documented_exit_codes(text):
 
     return {int(m.group(1)) for m in
             re.finditer(r'^\s+(\d+)\s', section, re.MULTILINE)}
+
+
+def all_parsers(parser):
+    yield parser
+
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            for sub in action.choices.values():
+                yield from all_parsers(sub)
+
+
+def test_options_have_short_and_long_forms(vrfdir):
+    parsers = list(all_parsers(vrfdir.build_parser()))
+
+    # the main parser and the parsers of the commands
+    assert len(parsers) > 1
+
+    for parser in parsers:
+        for action in parser._actions:
+            if not action.option_strings:
+                continue
+
+            short = [o for o in action.option_strings
+                     if re.fullmatch(r'-[^-]', o)]
+            long = [o for o in action.option_strings
+                    if re.fullmatch(r'--[^-].*', o)]
+
+            assert short and long, (parser.prog, action.option_strings)
 
 
 def test_exit_codes(vrfdir):

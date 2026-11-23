@@ -1885,7 +1885,7 @@ def discard_stdout():
     os.dup2(devnull, sys.stdout.fileno())
 
 
-def run_command():
+def build_parser():
     raw = argparse.RawDescriptionHelpFormatter
 
     parser = VrfdirArgumentParser(
@@ -1894,7 +1894,7 @@ def run_command():
         'command.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='print debug messages to stderr')
-    parser.add_argument('--version', action='version',
+    parser.add_argument('-V', '--version', action='version',
                         version='%(prog)s ' + version_string(),
                         help='print the version and exit')
     subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
@@ -1957,7 +1957,11 @@ def run_command():
         'locale')
     parser_scan.set_defaults(func=cmd_scan)
 
-    args = parser.parse_args()
+    return parser
+
+
+def run_command():
+    args = build_parser().parse_args()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)

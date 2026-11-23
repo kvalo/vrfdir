@@ -30,6 +30,8 @@ project adheres to [Semantic Versioning][semver].
   that the new manifest.json is still there after a power cut. Not
   on Windows, which cannot do it.
 
+- `-V` is the short form of `--version`.
+
 ### Changed
 
 - `vrfdir list` and `vrfdir export` print the files sorted by the
