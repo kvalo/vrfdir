@@ -1,0 +1,40 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test scan command with names which are valid. The names which are not
+# valid UTF-8 are in tests/specs-linux.
+
+set -e
+
+SUBDIR="0/00/000/0000"
+
+cd "$DATADIR"
+
+echo "create files"
+
+mkdir -p $SUBDIR
+
+file_space=$SUBDIR/'space foo'
+echo 1234567890 > "$file_space"
+
+mkdir dir
+echo 0000000000 > dir/valid
+
+file_utf8=$(printf 'KEV\303\204TJUHLA')
+echo 0000000000 > "$file_utf8"
+echo
+
+# only the number of the files is printed
+echo vrfdir scan
+"$SRCDIR/vrfdir" scan
+echo
+
+# the files in .vrfdir are not counted
+echo vrfdir scan with a repository
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" scan
+echo
+
+# cleanup
+rm -fr .vrfdir 0 dir "$file_utf8"

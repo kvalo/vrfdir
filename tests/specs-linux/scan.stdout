@@ -2,17 +2,10 @@ create weird files
 ls --escape 0/00/000/0000
 horizontal-tab:\tfoo
 iso8859-1-a-with-diaeresis:\ \304
-space:\ foo
 
 vrfdir scan
 E 0/00/000/0000/iso8859-1-a-with-diaeresis: M-D
 \E bad\nM-D
 E dir-M-d/valid
-6 files
-
-vrfdir scan with a repository
-E 0/00/000/0000/iso8859-1-a-with-diaeresis: M-D
-\E bad\nM-D
-E dir-M-d/valid
-6 files
+4 files
 

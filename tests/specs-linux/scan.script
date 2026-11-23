@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test scan command
+# test scan command with names which are not valid UTF-8. The rest is
+# in tests/specs.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!
@@ -17,9 +18,6 @@ echo "create weird files"
 
 mkdir -p $SUBDIR
 
-file_space=$SUBDIR/$(printf 'space: foo')
-echo 1234567890 > "$file_space"
-
 file_tab=$SUBDIR/$(printf 'horizontal-tab:\tfoo')
 echo 0000000000 > "$file_tab"
 
@@ -30,9 +28,6 @@ echo 0000000000 > "$file_8859"
 dir_8859=$(printf 'dir-\xe4')
 mkdir "$dir_8859"
 echo 0000000000 > "$dir_8859/valid"
-
-file_utf8=$(printf 'KEV\xc3\x84TJUHLA')
-echo 0000000000 > "$file_utf8"
 
 # the newline is escaped, so that the name is on one line
 file_newline=$'bad\n\xc4'
@@ -47,11 +42,5 @@ echo vrfdir scan
 "$SRCDIR/vrfdir" scan | cat -v
 echo
 
-# the files in .vrfdir are not counted
-echo vrfdir scan with a repository
-"$SRCDIR/vrfdir" init
-"$SRCDIR/vrfdir" scan | cat -v
-echo
-
 # cleanup
-rm -fr .vrfdir 0 "$dir_8859" "$file_utf8" "$file_newline"
+rm -fr .vrfdir 0 "$dir_8859" "$file_newline"
