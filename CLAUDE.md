@@ -207,6 +207,24 @@ output files (`.stdout`, `.stderr`, `.exit`), `tests/data/*.json`, the
 configuration dotfiles (`.flake8`, `.mdlrc`, `.mdl_style.rb`,
 `.gitignore`) and the license text in `LICENSES/`.
 
+## Finding the commit of a version
+
+A `+git` version has a suffix, like `0.1.0+git.1667ecd1`
+(`version_string()`). It is not a git commit id but the first 8 hex
+digits of the SHA-256 of the `vrfdir` script, so `git show` cannot
+resolve it. Hash the script at every commit instead:
+
+    for c in $(git rev-list --all); do
+        h=$(git show $c:vrfdir | sha256sum | cut -c1-8)
+        [ "$h" = 1667ecd1 ] && git log --oneline -1 $c
+    done
+
+Several commits can match, as a commit which does not touch `vrfdir`
+has the same hash as its parent. The oldest match is the commit which
+made that script. A commit which has no `vrfdir` at all prints an
+error, ignore it. If nothing matches, the build had local changes or
+is from a commit which is not in this repository (fetch first).
+
 ## Release process
 
 The version is only in `VERSION` in `vrfdir`, and CHANGELOG.md has a
