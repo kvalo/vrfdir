@@ -2,9 +2,10 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test vrfdir upgrade with a file and a directory which cannot be read,
-# the Windows version of tests/specs-unix/upgrade. The rest is in
-# tests/specs.
+# test vrfdir upgrade with a file which cannot be read, the Windows
+# version of tests/specs-unix/upgrade. The rest is in tests/specs. A
+# directory which cannot be read is not tested: on the CI runner a deny
+# entry of a directory has no effect.
 
 # Windows has no chmod for this, take the right away from the user with
 # a deny entry. MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from
@@ -59,15 +60,6 @@ deny b RD
 echo "exit value: $?"
 allow b
 echo aaaa > a
-
-echo
-echo a directory which cannot be read is an error, its files are not upgraded
-make_v1 a dir/c
-deny dir RD
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-allow dir
-"$SRCDIR/vrfdir" list
 
 # cleanup
 rm -fr .vrfdir a b dir empty

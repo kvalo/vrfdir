@@ -15,10 +15,3 @@ repository converted to the latest format (version 3)
 1 file(s) modified, they still have the MD5 checksum
 1 file(s) could not be upgraded
 exit value: 2
-
-a directory which cannot be read is an error, its files are not upgraded
-repository converted to the latest format (version 3)
-1 file(s) upgraded to SHA-256
-exit value: 3
-sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
-md5:b26795c69684a7c9cc4a94ff70a95b71  5            dir/c
