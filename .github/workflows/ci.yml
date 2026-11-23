@@ -17,7 +17,7 @@ permissions:
 
 env:
   # cmdspecs is not in apt or on PyPI, install it from this tag.
-  CMDSPECS: git+https://github.com/kvalo/cmdspecs@v0.34.0
+  CMDSPECS: git+https://github.com/kvalo/cmdspecs@v0.35.0
 
 jobs:
   test:
