@@ -22,12 +22,12 @@ checksums), the tests use them to check that.
 - Run all tests: `./check` (it refuses to run as root, several tests
   need a file which cannot be read)
 - Run one test: `./check -t <name>` (base name of a script in
-  `tests/specs/`, `tests/specs-linux/` or `tests/specs-macos/`, e.g.
-  `-t status`; `-t` can be repeated)
+  `tests/specs/` or one of the `tests/specs-*/` directories, e.g.
+  `-t status`; `-t` can be repeated and runs the test of that name in
+  every directory)
 - Keep temporary data of a failed test: `./check -k`
 - Run only the tests which work on every system: `./check --portable`
-  (only `tests/specs/`, without `tests/specs-linux/` or
-  `tests/specs-macos/`)
+  (only `tests/specs/`, none of the `tests/specs-*/` directories)
 - Run the pytest unit tests: `./unit [pytest options]` (needs
   python3-pytest, works as root too as no unit test needs an
   unreadable file)
@@ -43,8 +43,9 @@ checksums), the tests use them to check that.
   is installed, yamllint (config in `.yamllint`) on the GitHub
   workflow
 - CI: `.github/workflows/ci.yml` runs `./check`, `./unit` and `./lint`
-  on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15 and
-  on macOS (`macos-latest`, with GNU coreutils and sed from brew).
+  on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15, on
+  macOS (`macos-latest`, with GNU coreutils and sed from brew) and on
+  Windows (`windows-latest`, in the Git Bash of Git for Windows).
   It installs `cmdspecs` from a pinned tag, bump the tag when needed
 
 There is no build step. The scripts have no file extensions to glob on,
@@ -62,17 +63,43 @@ of this repository. It is available from
   output is compared with `<name>.stdout`, and with `<name>.stderr`
   and `<name>.exit` (expected exit code) when present. A change to
   vrfdir's output needs the matching expected files updated.
-- A test which cannot work on macOS goes to `tests/specs-linux/`
-  (same format), as cmdspecs cannot skip a test. That is a test which
-  needs a file name which is not valid UTF-8 (APFS refuses it), names
-  which differ only in the case or the normalisation form, `/dev/full`
-  or an error text of Linux. `./check` runs `tests/specs-linux/`
-  only on Linux (`uname -s`), so the BSDs run just `tests/specs/`.
-- `tests/specs-macos/` has the tests of the macOS behaviour (case and
-  normalisation form of names) which cannot run on Linux. `./check`
-  runs it only on macOS (`uname -s` is Darwin), so only CI and the
-  user can run it: say so when you add or change one, the expected
-  output was not seen on a real macOS.
+- `tests/specs/` runs on every system, also on Windows, where
+  cmdspecs runs the scripts with the sh of Git for Windows. cmdspecs
+  cannot skip a test, so a test which cannot work everywhere goes to
+  one of the directories below (same format), chosen by `./check`
+  with `uname -s`.
+- `tests/specs-unix/` is for a test which needs a POSIX system, run
+  everywhere but on Windows: chmod for a file or a directory which
+  cannot be read, symbolic links, named pipes, the flush of a
+  directory, an argument like `/dev/null` (the sh of Git for Windows
+  converts an absolute POSIX path for a Windows program), or an error
+  text which differs on Windows ("Not a directory", "Is a
+  directory"). A test which also has parts for every system is split:
+  the part which needs POSIX has the same name in `tests/specs-unix/`,
+  so that `-t <name>` runs both, and its Windows version, when there
+  is one, the same name in `tests/specs-windows/`.
+- A test which cannot work on macOS goes to `tests/specs-linux/`. That
+  is a test which needs a file name which is not valid UTF-8 (APFS
+  refuses it), names which differ only in the case or the
+  normalisation form, `/dev/full` or an error text of Linux.
+  `./check` runs it only on Linux, so the BSDs run just
+  `tests/specs/` and `tests/specs-unix/`.
+- `tests/specs-macos/` has the tests of the macOS behaviour
+  (normalisation form of names), run only on macOS (`uname -s` is
+  Darwin). `tests/specs-caseless/` has the tests of a filesystem which
+  ignores the case of the names, run on macOS and Windows.
+- `tests/specs-windows/` has the tests of the Windows behaviour
+  (backslashes, names which cannot be files there, junctions) and the
+  Windows versions of tests in `tests/specs-unix/`, run only on Windows
+  (`uname -s` is `MINGW*` or `MSYS*`). It makes a file unreadable
+  with a deny entry of icacls instead of chmod; on the CI runner a
+  deny entry of a directory has no effect, so it has no tests of a
+  directory without permissions.
+- Only CI and the user can run `tests/specs-macos/`,
+  `tests/specs-caseless/` and `tests/specs-windows/`: say so when you
+  add or change one, the expected output was not seen on a real
+  system. Take it from the CI log and check that every line is the
+  right behaviour, not only that it is what vrfdir printed.
 - Scripts work in `$DATADIR` (temporary directory), call
   `$SRCDIR/vrfdir` and `$SRCDIR/tests/genbackupdata`, and remove
   `.vrfdir` and their data at the end.
@@ -145,9 +172,11 @@ commands, signals, fault injection and unreadable files.
   on the current system (`is_native_name()`) is kept in
   `VrfdirRepo.foreign` and written back as it is, never dropped.
 - vrfdir has to work on Linux, the BSDs, macOS and Windows. CI runs
-  the tests on Linux and macOS (`./check` and `./unit`), but nothing
-  runs on Windows or the BSDs. Say so when you change code which is
-  only for one system, the user has to try it by hand.
+  the tests (`./check` and `./unit`) on Linux, macOS and Windows, but
+  nothing runs on the BSDs, and TODO.md lists what is not tested on
+  Windows. Say so when you change code which is only for one system:
+  for macOS and Windows CI is the only test, for the BSDs the user
+  has to try it by hand.
 - The tests are run in a UTF-8 locale.
 
 ## Command line options
@@ -249,9 +278,10 @@ like `v0.1.0`.
      (the first release has
      `https://github.com/kvalo/vrfdir/releases/tag/vX.Y.Z`).
    - Run `./check`, `./unit` and `./lint`.
-2. Test that exact commit on Windows and macOS by hand, as nothing
-   checks the code for them (see Constraints). If the commit changes
-   afterwards, e.g. by amending, the tag must point at the new hash.
+2. Test that exact commit on Windows and macOS by hand, as CI tests
+   only part of the code for them (see Constraints). If the commit
+   changes afterwards, e.g. by amending, the tag must point at the new
+   hash.
    Also push the commit to `staging` (ask first) and wait for CI
    with `gh run watch`.
 3. The user signs and tags the exact commit which was tested, e.g.
