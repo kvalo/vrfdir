@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # test that the repository and the output do not depend on the
-# encoding of the locale
+# encoding of the locale, with a name which is not valid UTF-8. The
+# rest is in tests/specs.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!
@@ -21,14 +22,12 @@ vrfdir_ascii() {
     LC_ALL=C PYTHONCOERCECLOCALE=0 PYTHONUTF8=0 "$SRCDIR/vrfdir" "$@"
 }
 
-file_utf8=$(printf 'KEV\xc3\x84TJUHLA')
-echo 0000000000 > "$file_utf8"
 file_8859=$(printf 'iso8859-1: \xc4')
 echo 1111111111 > "$file_8859"
 
 echo "add in utf-8"
 "$SRCDIR/vrfdir" init
-"$SRCDIR/vrfdir" add --quiet "$file_utf8" "$file_8859"
+"$SRCDIR/vrfdir" add --quiet "$file_8859"
 json_utf8=$(cat .vrfdir/manifest.json)
 "$SRCDIR/vrfdir" list | cat -v
 echo
@@ -43,7 +42,7 @@ rm -fr .vrfdir
 
 echo "add in ascii"
 vrfdir_ascii init
-vrfdir_ascii add --quiet "$file_utf8" "$file_8859"
+vrfdir_ascii add --quiet "$file_8859"
 if [ "$(cat .vrfdir/manifest.json)" != "$json_utf8" ]; then
     echo manifest.json is different
 fi
@@ -59,4 +58,4 @@ echo "list with PYTHONIOENCODING"
 PYTHONIOENCODING=utf-16 "$SRCDIR/vrfdir" list | cat -v
 
 # cleanup
-rm -fr .vrfdir "$file_utf8" "$file_8859"
+rm -fr .vrfdir "$file_8859"

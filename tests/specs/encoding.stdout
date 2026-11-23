@@ -1,0 +1,12 @@
+add in utf-8
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVÄTJUHLA
+
+verify in ascii
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVÄTJUHLA
+
+add in ascii
+
+verify in utf-8
+
+list with PYTHONIOENCODING
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           KEVÄTJUHLA

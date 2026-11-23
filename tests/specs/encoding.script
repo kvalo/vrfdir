@@ -1,0 +1,57 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that the repository and the output do not depend on the
+# encoding of the locale. A name which is not valid UTF-8 is in
+# tests/specs-linux.
+#
+# The tests are run in a UTF-8 locale. The other environment used here
+# is the C locale with ASCII as the encoding, which exists everywhere.
+# Python needs the two variables to really use it.
+
+set -e
+
+cd "$DATADIR"
+
+vrfdir_ascii() {
+    LC_ALL=C PYTHONCOERCECLOCALE=0 PYTHONUTF8=0 "$SRCDIR/vrfdir" "$@"
+}
+
+file_utf8=$(printf 'KEV\303\204TJUHLA')
+echo 0000000000 > "$file_utf8"
+
+echo "add in utf-8"
+"$SRCDIR/vrfdir" init
+"$SRCDIR/vrfdir" add --quiet "$file_utf8"
+json_utf8=$(cat .vrfdir/manifest.json)
+"$SRCDIR/vrfdir" list
+echo
+
+echo "verify in ascii"
+vrfdir_ascii status
+vrfdir_ascii check --quiet
+vrfdir_ascii list
+echo
+
+rm -fr .vrfdir
+
+echo "add in ascii"
+vrfdir_ascii init
+vrfdir_ascii add --quiet "$file_utf8"
+if [ "$(cat .vrfdir/manifest.json)" != "$json_utf8" ]; then
+    echo manifest.json is different
+fi
+echo
+
+echo "verify in utf-8"
+"$SRCDIR/vrfdir" status
+"$SRCDIR/vrfdir" check --quiet
+echo
+
+# the encoding of stdout must not change the bytes of the names
+echo "list with PYTHONIOENCODING"
+PYTHONIOENCODING=utf-16 "$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir "$file_utf8"
