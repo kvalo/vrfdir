@@ -15,11 +15,7 @@ vrfdir export
 \02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  x\nM fake
 
 sha256sum -c accepts the exported names
-\a\nb: OK
-\back\\nslash: OK
-\back\\slash: OK
-\c\rd: OK
-\x\nM fake: OK
+exit value: 0
 
 vrfdir info
 Format:       version 3

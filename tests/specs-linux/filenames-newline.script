@@ -34,8 +34,11 @@ echo vrfdir export
 "$SRCDIR/vrfdir" export | cat -v
 echo
 
+# Only the exit value, how sha256sum -c prints such a name depends on
+# the version of coreutils.
 echo sha256sum -c accepts the exported names
-"$SRCDIR/vrfdir" export | sha256sum -c | LC_ALL=C sort
+"$SRCDIR/vrfdir" export | sha256sum -c --quiet
+echo "exit value: ${PIPESTATUS[1]}"
 echo
 
 echo vrfdir info
