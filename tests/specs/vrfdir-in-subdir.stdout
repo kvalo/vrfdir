@@ -1,0 +1,10 @@
+vrfdir status
+? sub/.vrfdir/manifest.json
+exit value: 1
+vrfdir add
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:940a68104d3b690442453f4be394b0a14721a174127d84c1c2f834b7ad05d684  6            sub/.vrfdir/manifest.json
+vrfdir scan
+2 files

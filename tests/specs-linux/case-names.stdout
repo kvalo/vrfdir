@@ -9,9 +9,3 @@ vrfdir status
 exit value: 0
 vrfdir check
 exit value: 0
-.vrfdir in a subdirectory is a normal directory
-? sub/.vrfdir/manifest.json
-exit value: 1
-exit value: 0
-sha256:940a68104d3b690442453f4be394b0a14721a174127d84c1c2f834b7ad05d684  6            sub/.vrfdir/manifest.json
-5 files

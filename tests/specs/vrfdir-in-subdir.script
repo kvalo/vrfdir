@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that only the .vrfdir in the current directory is the
+# repository, a .vrfdir in a subdirectory is a normal directory. This
+# is not described in the help texts, see TODO.md.
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+"$SRCDIR/vrfdir" add --quiet a
+
+mkdir -p sub/.vrfdir
+echo inner > sub/.vrfdir/manifest.json
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+echo vrfdir add
+"$SRCDIR/vrfdir" add --quiet sub
+echo "exit value: $?"
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo vrfdir scan
+"$SRCDIR/vrfdir" scan
+
+# cleanup
+rm -fr .vrfdir a sub
