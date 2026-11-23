@@ -281,9 +281,8 @@ like `v0.1.0`.
 2. Test that exact commit on Windows and macOS by hand, as CI tests
    only part of the code for them (see Constraints). If the commit
    changes afterwards, e.g. by amending, the tag must point at the new
-   hash.
-   Also push the commit to `staging` (ask first) and wait for CI
-   with `gh run watch`.
+   hash. Also push the commit to `staging` and wait for CI with
+   `gh run watch`.
 3. The user signs and tags the exact commit which was tested, e.g.
    `git tag -s vX.Y.Z <hash> -m "vrfdir vX.Y.Z"`, and pushes the
    commit and the tag to `main`. Never push to `main` or create the
