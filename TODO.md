@@ -148,8 +148,9 @@ Open questions, the tools have not been chosen yet:
   to become a module (or be installed as a script file) for an
   entry point to work, and the tests call `$SRCDIR/vrfdir`
   directly, so they must keep working.
-- Where the version comes from. There is `MANIFEST_VERSION` for
-  manifest.json but no release version yet, see the versioning item.
+- Where the version comes from. The release version is `VERSION` in
+  the script, it must stay the only place (`MANIFEST_VERSION` is the
+  format of manifest.json and unrelated).
 - Add the new files to `./lint` and check that the tests still
   pass from a clean install.
 
@@ -217,13 +218,3 @@ without it.
 Windows has no signals like this, os.kill() with SIGINT does not
 work there. Keep sys.exit(EXIT_INTERRUPTED) on win32. The help texts
 can still say 130, that is what the shell shows.
-
-## versioning
-
-vrfdir has no version number, only MANIFEST_VERSION for the format of
-manifest.json. Without one a user cannot tell which vrfdir they have
-or say it in a bug report.
-
-Choose a version scheme, store the version in the vrfdir file and
-show it with 'vrfdir --version'. Tag the releases in git with the
-same version.
