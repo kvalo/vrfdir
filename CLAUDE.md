@@ -41,7 +41,7 @@ checksums), the tests use them to check that.
 - Lint: `./lint` runs flake8 (config in `.flake8`), shellcheck, mdl
   (markdownlint, config in `.mdlrc` and `.mdl_style.rb`) and, if it
   is installed, yamllint (config in `.yamllint`) on the GitHub
-  workflow
+  workflow and `reuse lint` (REUSE compliance, see License)
 - CI: `.github/workflows/ci.yml` runs `./check`, `./unit` and `./lint`
   on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15, on
   macOS (`macos-latest`, with GNU coreutils and sed from brew) and on
@@ -228,13 +228,17 @@ be worse if broken.
 ## License
 
 vrfdir is GPL-3.0-or-later, the text is in
-`LICENSES/GPL-3.0-or-later.txt`. Every new script, test and markdown
-file starts with the two SPDX lines of the existing files (after the
-shebang, as an HTML comment after the title in markdown). Files which
-cannot or should not have a comment have no header: the expected
-output files (`.stdout`, `.stderr`, `.exit`), `tests/data/*.json`, the
-configuration dotfiles (`.flake8`, `.mdlrc`, `.mdl_style.rb`,
-`.gitignore`) and the license text in `LICENSES/`.
+`LICENSES/GPL-3.0-or-later.txt`, and follows the REUSE specification
+(<https://reuse.software/>), checked by `reuse lint` in `./lint`.
+Every new script, test and markdown file starts with the two SPDX
+lines of the existing files (after the shebang, as an HTML comment
+after the title in markdown). Files which cannot or should not have a
+comment have no header: the expected output files (`.stdout`,
+`.stderr`, `.exit`), `tests/data/*.json`, the configuration dotfiles
+(`.flake8`, `.mdlrc`, `.mdl_style.rb`, `.gitignore`,
+`.gitattributes`) and the license text in `LICENSES/`. `REUSE.toml`
+gives their copyright and license instead; add a new file of that
+kind there, unless one of its globs already covers it.
 
 ## Finding the commit of a version
 
