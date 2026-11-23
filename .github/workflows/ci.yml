@@ -87,8 +87,8 @@ jobs:
         with:
           python-version: "3.14"
       - name: Install GNU tools
-        # The tests use sha256sum, md5sum, ls --escape and sed -i of
-        # GNU coreutils and sed, macOS has the BSD versions.
+        # The tests use sha256sum, md5sum and sed -i of GNU coreutils
+        # and sed, macOS has the BSD versions.
         run: |
           brew install coreutils gnu-sed
           prefix="$(brew --prefix)"
