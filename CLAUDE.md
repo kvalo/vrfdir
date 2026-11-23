@@ -305,7 +305,26 @@ like `v0.1.0`.
 
 ## Commits
 
-Subject is `<component>: <lowercase imperative summary>` without a
-trailing period, where the component is the file name (`vrfdir:`,
-`tests:`, `benchmark:`, `TODO.md:`). Adding a new file uses no
-prefix (`add genbackupdata`). The body is short prose explaining why.
+Commits follow the style of the Linux kernel
+(`Documentation/process/submitting-patches.rst`):
+
+- One logical change in a commit. Split unrelated changes, and do not
+  split one change so that a commit makes no sense alone.
+- Subject is `<component>: <lowercase imperative summary>` without a
+  trailing period, where the component is the file name (`vrfdir:`,
+  `tests:`, `benchmark:`, `TODO.md:`). Adding a new file uses no
+  prefix (`add genbackupdata`).
+- The body is short prose in the imperative mood: what the problem
+  is and why the change solves it. Wrap it at 72 columns.
+- Refer to an earlier commit with its 12 character id and subject:
+  `commit 0dc3216a5717 ("vrfdir: add -V as the short form of
+  --version")`.
+
+A commit must never break `git bisect`: every commit on its own has to
+pass `./check`, `./unit` and `./lint`, and CI on every system which
+`ci.yml` of that commit tests. Order the commits so that a fix comes
+before what needs it, for example a new CI job after the fixes which
+make its tests pass. Check every commit before pushing, e.g. with
+`git rebase --exec './check && ./unit && ./lint' main`. A commit on
+`staging` which breaks something is fixed by rebasing, not by a
+commit on top of it.
