@@ -1,0 +1,133 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test genbackupdata command. A path which is a file, the directories
+# without permissions and a full disk are in tests/specs-linux, the
+# error texts depend on the system.
+
+set -e
+
+cd "$DATADIR"
+
+# du is not used for the size as how it counts directories depends on
+# the du version and the filesystem
+total_size() {
+    find "$1" -type f -exec cat {} + | wc -c
+}
+
+echo "Create 9M of test data"
+"$SRCDIR/tests/genbackupdata" --quiet --create 9M testdata
+
+echo "Total size:"
+total_size testdata
+echo
+
+# The data must not change, for example with a new Python version
+# md5sum on Windows can mark the names with '*' of its binary mode
+echo "Checksum of the file names and data:"
+find testdata -type f | LC_ALL=C sort | xargs md5sum | sed 's/ \*/  /' |
+    md5sum | cut -d' ' -f1
+echo
+
+# Verify that we can recreate the same data (deterministic)
+"$SRCDIR/tests/genbackupdata" --quiet --create 9M testdata2
+
+echo "Compare the directories (should be identical):"
+diff -r testdata testdata2 && echo "Directories are identical (deterministic)"
+echo
+
+# Old files in the directory would make the result non-deterministic
+echo "Create test data in a directory which is not empty"
+"$SRCDIR/tests/genbackupdata" --quiet --create 9M testdata 2>&1 ||
+    echo "Failed with exit code $?"
+echo
+
+# A size smaller than the normal minimum file size must work as well
+echo "Create 1k of test data"
+"$SRCDIR/tests/genbackupdata" --quiet --create 1k testdata3
+
+echo "Total size:"
+total_size testdata3
+echo
+
+# The case of the size suffix does not matter
+echo "Create 1K of test data"
+"$SRCDIR/tests/genbackupdata" --quiet --create 1K testdata4
+
+echo "Total size:"
+total_size testdata4
+echo
+
+# Only the last line as the usage text depends on the Python version
+echo "Invalid sizes:"
+for size in 1x k 1.5M 0 1kB 1_000 +5; do
+    "$SRCDIR/tests/genbackupdata" --quiet --create "$size" testdata5 2>&1 |
+        tail -n 1
+done
+"$SRCDIR/tests/genbackupdata" --quiet --create 1x testdata5 2>/dev/null ||
+    echo "Failed with exit code $?"
+echo
+
+# The exact size, also for sizes below the minimum file size
+echo "Exact sizes:"
+for size in 1 511 512 513 1048577; do
+    "$SRCDIR/tests/genbackupdata" --quiet --create "$size" "size$size"
+    echo "$size: $(total_size "size$size")"
+done
+echo
+
+# A size of this order has sub directories as well, and the files have
+# continuous numbers
+echo "Sub directories are created:"
+if [ -n "$(find testdata -mindepth 1 -type d)" ]; then
+    echo "yes"
+fi
+echo "File numbers are continuous:"
+find testdata -type f | sed 's|.*/||' | LC_ALL=C sort > names
+count=$(wc -l < names)
+i=1
+while [ "$i" -le "$count" ]; do
+    printf 'file%08d\n' "$i"
+    i=$((i + 1))
+done > expected-names
+cmp names expected-names && echo "yes"
+echo
+
+# The data does not depend on the directory, which does not need to
+# exist or to be empty
+echo "Create test data in a path which does not exist yet:"
+"$SRCDIR/tests/genbackupdata" --quiet --create 9M deep/er/testdata
+diff -r testdata deep/er/testdata && echo "identical"
+mkdir emptydir
+"$SRCDIR/tests/genbackupdata" --quiet --create 9M emptydir
+diff -r testdata emptydir && echo "identical"
+echo
+
+# Without --quiet the progress is printed. Only the time of the last
+# line changes.
+echo "Output without --quiet:"
+"$SRCDIR/tests/genbackupdata" --create 3k verbose |
+    sed 's/ ([0-9.]* seconds)$//'
+echo
+
+echo "Wrong command lines:"
+"$SRCDIR/tests/genbackupdata" --quiet testdata5 2>&1 | tail -n 1
+"$SRCDIR/tests/genbackupdata" --quiet --create 1k 2>&1 | tail -n 1
+"$SRCDIR/tests/genbackupdata" --quiet --create 1k --foo testdata5 2>&1 |
+    tail -n 1
+"$SRCDIR/tests/genbackupdata" --quiet --create 1k a b 2>&1 | tail -n 1
+"$SRCDIR/tests/genbackupdata" --quiet --create 2>&1 | tail -n 1
+"$SRCDIR/tests/genbackupdata" --quiet testdata5 2>/dev/null ||
+    echo "Failed with exit code $?"
+echo
+
+# Python sets stdout to None then, which must not be a stacktrace
+echo "Output to a closed stdout:"
+"$SRCDIR/tests/genbackupdata" --create 3k closed >&- &&
+    echo "Created the data"
+echo
+
+# cleanup
+rm -fr testdata testdata2 testdata3 testdata4 size* names \
+    expected-names deep emptydir verbose closed

@@ -117,8 +117,8 @@ of this repository. It is available from
 - The expected files are UTF-8. Output with file names which are not
   valid UTF-8 is piped through `cat -v` in the scripts.
 - `tests/genbackupdata` is the local test data generator. Its output
-  must stay deterministic; `tests/specs-linux/genbackupdata.script`
-  checks that.
+  must stay deterministic; `tests/specs/genbackupdata.script` checks
+  that.
 
 ## Unit tests
 
