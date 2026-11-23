@@ -1,0 +1,11 @@
+vrfdir status
+? 10
+? 9
+? B
+? _x
+? a
+? sub-file
+? sub/s
+? z
+? Ａ
+exit value: 1

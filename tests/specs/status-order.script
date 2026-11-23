@@ -1,0 +1,30 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the order of the lines of status. It is the order of the bytes
+# of the names, so that it does not depend on the locale or on the
+# directory order of the filesystem. A name which is not valid UTF-8 is
+# in tests/specs-linux.
+#
+# don't 'set -e' on purpose so that we can verify the exit value
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+
+# U+FF21 is the bytes EF BC A1, after every ASCII name
+for name in z a B 9 10 '_x' "$(printf '\357\274\241')"; do
+    echo "$name" > "$name"
+done
+
+mkdir sub
+echo sub > sub/s
+echo sub > 'sub-file'
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+# cleanup
+rm -fr .vrfdir z a B 9 10 '_x' "$(printf '\357\274\241')" sub sub-file

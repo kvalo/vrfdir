@@ -1,12 +1,5 @@
 vrfdir status
-? 10
-? 9
-? B
-? _x
 ? a
-? sub-file
-? sub/s
-? z
 ? M-oM-<M-!
 ? M-^?
 exit value: 1

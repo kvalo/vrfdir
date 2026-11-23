@@ -2,12 +2,11 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test the order of the lines of status. It is the order of the bytes
-# of the names, so that it does not depend on the locale or on the
-# directory order of the filesystem. U+FF21 is the bytes EF BC A1 and
-# comes before the byte FF. In a Python string the byte FF is
-# U+DCFF, which is before U+FF21, so a sort of the strings would give
-# the opposite order.
+# test the order of the lines of status with a name which is not valid
+# UTF-8. U+FF21 is the bytes EF BC A1 and comes before the byte FF. In a
+# Python string the byte FF is U+DCFF, which is before U+FF21, so a sort
+# of the strings would give the opposite order. The rest is in
+# tests/specs.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!
@@ -18,13 +17,9 @@ cd "$DATADIR" || exit 1
 
 "$SRCDIR/vrfdir" init
 
-for name in z a B 9 10 '_x' "$(printf '\xff')" "$(printf '\xef\xbc\xa1')"; do
+for name in a "$(printf '\xff')" "$(printf '\xef\xbc\xa1')"; do
     echo "$name" > "$name"
 done
-
-mkdir sub
-echo sub > sub/s
-echo sub > 'sub-file'
 
 echo vrfdir status
 # cat -v shows the byte which is not valid UTF-8
@@ -32,5 +27,4 @@ echo vrfdir status
 echo "exit value: ${PIPESTATUS[0]}"
 
 # cleanup
-rm -fr .vrfdir z a B 9 10 '_x' "$(printf '\xff')" \
-   "$(printf '\xef\xbc\xa1')" sub sub-file
+rm -fr .vrfdir a "$(printf '\xff')" "$(printf '\xef\xbc\xa1')"
