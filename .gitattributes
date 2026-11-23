@@ -1,0 +1,4 @@
+# Check out text files with LF also on Windows, where Git for Windows
+# defaults to CRLF. The expected output of the tests, tests/data and
+# the hash in the version of a git build must not depend on the system.
+* text=auto eol=lf
