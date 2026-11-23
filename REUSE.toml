@@ -1,0 +1,16 @@
+version = 1
+
+[[annotations]]
+path = [
+    ".flake8",
+    ".gitattributes",
+    ".gitignore",
+    ".mdlrc",
+    ".mdl_style.rb",
+    "tests/data/*.json",
+    "tests/specs*/*.stdout",
+    "tests/specs*/*.stderr",
+    "tests/specs*/*.exit",
+]
+SPDX-FileCopyrightText = "2026 Kalle Valo"
+SPDX-License-Identifier = "GPL-3.0-or-later"
