@@ -7,6 +7,12 @@ import sys
 import pytest
 
 
+# On Windows the names are not bytes, os.fsdecode() of bytes which are
+# not valid UTF-8 fails.
+undecodable = pytest.mark.skipif(sys.platform == 'win32',
+                                 reason='no undecodable names on Windows')
+
+
 def surrogate_name(*bad_bytes):
     return os.fsdecode(b'a' + bytes(bad_bytes) + b'b')
 
@@ -24,6 +30,7 @@ def test_json_name_roundtrip(vrfdir, name):
     assert vrfdir.name_from_json(vrfdir.name_to_json(name)) == name
 
 
+@undecodable
 def test_json_name_roundtrip_invalid_utf8(vrfdir):
     name = surrogate_name(0xff, 0xfe)
 
@@ -35,6 +42,10 @@ def test_json_name_roundtrip_invalid_utf8(vrfdir):
 def test_json_name_is_utf8_bytes(vrfdir):
     # the same key in every locale
     assert vrfdir.name_to_json('caf\u00e9') == 'caf\u00e9'
+
+
+@undecodable
+def test_json_name_of_invalid_utf8(vrfdir):
     assert vrfdir.name_to_json(os.fsdecode(b'a\xffb')) == 'a\udcffb'
     assert vrfdir.name_from_json('a\udcffb') == os.fsdecode(b'a\xffb')
 
@@ -42,6 +53,10 @@ def test_json_name_is_utf8_bytes(vrfdir):
 def test_is_valid_name(vrfdir):
     assert vrfdir.is_valid_name('file')
     assert vrfdir.is_valid_name('caf\u00e9')
+
+
+@undecodable
+def test_is_valid_name_undecodable(vrfdir):
     assert not vrfdir.is_valid_name(surrogate_name(0xff))
 
 
@@ -53,6 +68,10 @@ def test_foreign_name(vrfdir):
 
 def test_name_for_message(vrfdir):
     assert vrfdir.name_for_message('plain') == 'plain'
+
+
+@undecodable
+def test_name_for_message_undecodable(vrfdir):
     assert vrfdir.name_for_message(surrogate_name(0xff)) == 'a\\xffb'
 
 
@@ -82,7 +101,9 @@ def test_is_not_outside_path(vrfdir, name):
 @pytest.mark.skipif(sys.platform != 'win32', reason='Windows paths')
 @pytest.mark.parametrize('name', ['C:x', 'C:/x', '\\x', '//server/share/x'])
 def test_is_outside_path_windows(vrfdir, name):
-    assert vrfdir.is_outside_path(name)
+    # cmd_add() converts the path from the command line first, '\\x'
+    # is not an absolute path for os.path.isabs() of every version
+    assert vrfdir.is_outside_path(vrfdir.path_to_name(name))
 
 
 @pytest.mark.parametrize('name', [

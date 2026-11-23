@@ -492,7 +492,9 @@ def test_leading_backslash_of_old_versions_is_removed(vrfdir, stored):
     repo = load(vrfdir, make_json({'a\\b': {'md5sum': stored, 'size': 1}},
                                   version=1))
 
-    assert repo.files['a\\b']['checksum'] == 'md5:' + MD5_A
+    # the name is foreign on Windows, the entry is converted the same
+    entries = {**repo.files, **repo.foreign}
+    assert entries['a\\b']['checksum'] == 'md5:' + MD5_A
 
 
 def test_entries_keep_the_other_fields(vrfdir):
@@ -504,6 +506,8 @@ def test_entries_keep_the_other_fields(vrfdir):
     assert repo.files['file'] == value
 
 
+# on Windows the name is foreign, see test_foreign_names_on_windows
+@pytest.mark.skipif(sys.platform == 'win32', reason='POSIX names')
 def test_names_are_converted(vrfdir):
     bad = os.fsdecode(b'a\xffb')
 
@@ -557,7 +561,8 @@ def test_foreign_entries_are_written_back(vrfdir):
 
 
 @pytest.mark.skipif(sys.platform != 'win32', reason='Windows names')
-@pytest.mark.parametrize('key', ['a:b', 'con.txt', 'x.', 'back\\slash'])
+@pytest.mark.parametrize('key', ['a:b', 'con.txt', 'x.', 'back\\slash',
+                                 'a\udcffb'])
 def test_foreign_names_on_windows(vrfdir, key):
     repo = load(vrfdir, make_json({key: entry()}))
 

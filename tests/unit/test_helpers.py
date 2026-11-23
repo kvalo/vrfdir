@@ -48,8 +48,11 @@ def test_error_reason_of_a_real_failure(vrfdir, tmp_path):
 
     reason = vrfdir.error_reason(e.value)
 
-    assert reason == os.strerror(errno.ENOENT)
+    # the text of the operating system, without the error number and
+    # the name of str(), on Windows a different text than on POSIX
+    assert reason == e.value.strerror
     assert 'missing' not in reason
+    assert not reason.startswith('[')
 
 
 def test_error_reason_without_a_strerror(vrfdir):
