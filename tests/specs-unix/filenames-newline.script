@@ -46,12 +46,6 @@ echo vrfdir info
 "$SRCDIR/vrfdir" info --machine-readable | grep largest | cat -v
 echo
 
-echo vrfdir scan
-echo ffff > $'bad\n\xc4'
-"$SRCDIR/vrfdir" scan | cat -v
-rm $'bad\n\xc4'
-echo
-
 echo vrfdir status, nothing changed
 "$SRCDIR/vrfdir" status
 echo "exit value: $?"

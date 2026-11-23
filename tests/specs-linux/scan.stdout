@@ -6,11 +6,13 @@ space:\ foo
 
 vrfdir scan
 E 0/00/000/0000/iso8859-1-a-with-diaeresis: M-D
+\E bad\nM-D
 E dir-M-d/valid
-5 files
+6 files
 
 vrfdir scan with a repository
 E 0/00/000/0000/iso8859-1-a-with-diaeresis: M-D
+\E bad\nM-D
 E dir-M-d/valid
-5 files
+6 files
 

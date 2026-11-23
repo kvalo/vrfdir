@@ -36,10 +36,6 @@ largest.3=5 back\slash
 largest.4=\5 c\rd
 largest.5=\5 x\nM fake
 
-vrfdir scan
-\E bad\nM-D
-6 files
-
 vrfdir status, nothing changed
 exit value: 0
 

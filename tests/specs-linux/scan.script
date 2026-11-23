@@ -34,6 +34,10 @@ echo 0000000000 > "$dir_8859/valid"
 file_utf8=$(printf 'KEV\xc3\x84TJUHLA')
 echo 0000000000 > "$file_utf8"
 
+# the newline is escaped, so that the name is on one line
+file_newline=$'bad\n\xc4'
+echo 0000000000 > "$file_newline"
+
 echo ls --escape $SUBDIR
 LC_ALL=C ls --escape $SUBDIR
 echo
@@ -50,4 +54,4 @@ echo vrfdir scan with a repository
 echo
 
 # cleanup
-rm -fr .vrfdir 0 "$dir_8859" "$file_utf8"
+rm -fr .vrfdir 0 "$dir_8859" "$file_utf8" "$file_newline"
