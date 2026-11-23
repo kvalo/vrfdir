@@ -58,8 +58,12 @@ def send_sigint(*args):
 # Change the first byte of the file which is about to be fsynced, as
 # if the data was damaged on the way to the file. The file is open
 # only for writing, but every file vrfdir saves starts with '['.
+# Windows has no os.pwrite().
 def corrupt_file(fd):
-    os.pwrite(fd, b'X', 0)
+    pos = os.lseek(fd, 0, os.SEEK_CUR)
+    os.lseek(fd, 0, os.SEEK_SET)
+    os.write(fd, b'X')
+    os.lseek(fd, pos, os.SEEK_SET)
 
 
 # Python itself calls os.stat() with absolute paths, for example to
