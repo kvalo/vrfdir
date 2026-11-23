@@ -111,9 +111,9 @@ of this repository. It is available from
   of icacls on Windows, so the test goes to `tests/specs/`. A
   directory which cannot be read needs chmod and `tests/specs-unix/`:
   on the CI runner a deny entry of a directory has no effect.
-- `filenames.script`, `filenames-invalid.script`, `encoding.script`
-  and `scan.script` in `tests/specs-linux/` must stay bash, not sh: dash
-  cannot create the weird filenames they need.
+- `filenames-invalid.script`, `encoding.script` and `scan.script` in
+  `tests/specs-linux/` must stay bash, not sh: dash cannot create the
+  weird filenames they need.
 - The expected files are UTF-8. Output with file names which are not
   valid UTF-8 is piped through `cat -v` in the scripts.
 - `tests/genbackupdata` is the local test data generator. Its output

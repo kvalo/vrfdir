@@ -1,0 +1,46 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test names which cannot be files on Windows: a horizontal tab and a
+# backslash. The rest is in tests/specs.
+
+set -e
+
+cd "$DATADIR"
+
+# create simple repo
+"$SRCDIR/vrfdir" init
+
+echo "test horizontal tab"
+file_tab=$(printf 'horizontal-tab:\tfoo')
+echo 0000000000 > "$file_tab"
+"$SRCDIR/vrfdir" add --quiet "$file_tab"
+echo
+
+# the md5sum command escapes the name and marks the output line with
+# a backslash
+echo "test backslash"
+file_backslash='back\slash'
+echo 4444444444 > "$file_backslash"
+"$SRCDIR/vrfdir" add --quiet "$file_backslash"
+echo
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info
+echo
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+echo
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo
+
+# cleanup
+rm -fr .vrfdir "$file_tab" "$file_backslash"

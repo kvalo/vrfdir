@@ -1,0 +1,27 @@
+test space
+
+test leading dash
+
+test utf-8 character in subdir
+
+vrfdir info
+Format:       version 3
+Manifest:     sha256:8b80dd64979d635f5cf53cd401ad1584e5cfd2052bb3c9d6044a0cee8a1e4bbc
+Files:        3
+Total size:   33 B
+Checksums:    3 sha256, 0 md5
+
+Largest files:
+       11 B  -dash
+       11 B  space foo
+       11 B  utf-8/KEVÄTJUHLA
+
+vrfdir list
+sha256:4bfe8d30bc206a0054877e8ccc694e0c6dd0e16e0ea16af59c3a60e72a60f79d  11           -dash
+sha256:4795a1c2517089e4df569afd77c04e949139cf299c87f012b894fccf91df4594  11           space foo
+sha256:2bf7319d9df25bab7f177afb2b783c1dd5da1a068a09a7d293fcbdba707c694e  11           utf-8/KEVÄTJUHLA
+
+vrfdir status
+
+vrfdir check
+

@@ -1,0 +1,23 @@
+test horizontal tab
+
+test backslash
+
+vrfdir info
+Format:       version 3
+Manifest:     sha256:881618b3906666935f6020191745b67795f38a9356db6781aa1b8a4ab46bef15
+Files:        2
+Total size:   22 B
+Checksums:    2 sha256, 0 md5
+
+Largest files:
+       11 B  back\slash
+       11 B  horizontal-tab:	foo
+
+vrfdir list
+sha256:9a877ed9e619e950c7ae23b18badc4a76820699d405872811f16f31541ac6983  11           back\slash
+sha256:6f92601344e16851316e7cda90d053c0ad234e047ccf81ce6fe89e78bbdb111e  11           horizontal-tab:	foo
+
+vrfdir status
+
+vrfdir check
+
