@@ -1,0 +1,35 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the exact content of manifest.json which vrfdir writes. A change
+# in it has to be on purpose, a new vrfdir has to read the old files
+# and the old vrfdir the new ones, see the format version. The names
+# which cannot be files on every system are in tests/specs-linux.
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+echo init
+"$SRCDIR/vrfdir" init
+cat .vrfdir/manifest.json
+
+echo aaaa > a
+mkdir dir
+: > dir/empty
+echo cccc > "$(printf 'KEV\303\204T')"
+echo add
+"$SRCDIR/vrfdir" add --quiet a dir "$(printf 'KEV\303\204T')"
+cat .vrfdir/manifest.json
+
+# json.dumps() has to escape everything. wc of BSD puts spaces before
+# the number.
+echo only ASCII, one line
+if LC_ALL=C grep -q '[^ -~]' .vrfdir/manifest.json; then
+    echo manifest.json has other than printable ASCII
+fi
+echo "lines: $(wc -l < .vrfdir/manifest.json | tr -d ' ')"
+
+# cleanup
+rm -fr .vrfdir a dir "$(printf 'KEV\303\204T')"

@@ -1,7 +1,5 @@
-init
-[{"version": 3, "checksum": "sha256:05b7184ec4debc87f91316a7a72cb1708e67bc7c1487857ea4ec8d18bad308a7", "files": {}}]
 add
-[{"version": 3, "checksum": "sha256:3cee65e1e7b590ff6367417e9bf08faa3e9e72185e9af10907e720534e49691f", "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}, "back\\slash": {"checksum": "sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48", "size": 5}, "dir/empty": {"checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "size": 0}, "KEV\u00c4T": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 5}, "iso8859-1: \udcc4": {"checksum": "sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c", "size": 5}, "tab:\tname": {"checksum": "sha256:92bb8dfca790bff5f828acc389dd2b4035bbd5d3dd18b5f919372b4c6913fd5a", "size": 5}}}]
+[{"version": 3, "checksum": "sha256:097ba644841ec1948bc3009f570c97afc9a5dbd912551a2091ca5359fba3a08e", "files": {"back\\slash": {"checksum": "sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48", "size": 5}, "iso8859-1: \udcc4": {"checksum": "sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c", "size": 5}, "tab:\tname": {"checksum": "sha256:92bb8dfca790bff5f828acc389dd2b4035bbd5d3dd18b5f919372b4c6913fd5a", "size": 5}}}]
 only ASCII, one line
 lines: 1
 the backslash before the checksum is removed on the next write

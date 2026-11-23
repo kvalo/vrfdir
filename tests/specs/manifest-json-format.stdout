@@ -1,0 +1,6 @@
+init
+[{"version": 3, "checksum": "sha256:05b7184ec4debc87f91316a7a72cb1708e67bc7c1487857ea4ec8d18bad308a7", "files": {}}]
+add
+[{"version": 3, "checksum": "sha256:7c134075c3a0843b220c3ce20ad9a1d46bc1986037263efec5231be5e3b74dc3", "files": {"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}, "dir/empty": {"checksum": "sha256:e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855", "size": 0}, "KEV\u00c4T": {"checksum": "sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd", "size": 5}}}]
+only ASCII, one line
+lines: 1

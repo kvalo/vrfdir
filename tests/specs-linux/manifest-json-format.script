@@ -2,9 +2,9 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test the exact content of manifest.json which vrfdir writes. A change
-# in it has to be on purpose, a new vrfdir has to read the old files
-# and the old vrfdir the new ones, see the format version.
+# test the exact content of manifest.json which vrfdir writes for the
+# names which cannot be files on every system: a backslash, a tab and a
+# byte which is not valid UTF-8. The rest is in tests/specs.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!
@@ -13,24 +13,18 @@
 
 cd "$DATADIR" || exit 1
 
-echo init
 "$SRCDIR/vrfdir" init
-cat .vrfdir/manifest.json
 
-echo aaaa > a
 echo bbbb > 'back\slash'
-mkdir dir
-: > dir/empty
-echo cccc > "$(printf 'KEV\xc3\x84T')"
 echo dddd > "$(printf 'iso8859-1: \xc4')"
 echo eeee > "$(printf 'tab:\tname')"
 echo add
-"$SRCDIR/vrfdir" add --quiet a 'back\slash' dir "$(printf 'KEV\xc3\x84T')" \
-    "$(printf 'iso8859-1: \xc4')" "$(printf 'tab:\tname')"
+"$SRCDIR/vrfdir" add --quiet 'back\slash' "$(printf 'iso8859-1: \xc4')" \
+    "$(printf 'tab:\tname')"
 cat .vrfdir/manifest.json
 
-# json.dumps() has to escape everything, a byte which is not valid
-# UTF-8 is not written as it is either
+# json.dumps() has to escape everything, also a byte which is not
+# valid UTF-8
 echo only ASCII, one line
 if LC_ALL=C grep -q '[^ -~]' .vrfdir/manifest.json; then
     echo manifest.json has other than printable ASCII
@@ -51,5 +45,5 @@ echo ffff > f
 cat .vrfdir/manifest.json
 
 # cleanup
-rm -fr .vrfdir a 'back\slash' dir f "$(printf 'KEV\xc3\x84T')" \
-   "$(printf 'iso8859-1: \xc4')" "$(printf 'tab:\tname')"
+rm -fr .vrfdir 'back\slash' f "$(printf 'iso8859-1: \xc4')" \
+   "$(printf 'tab:\tname')"
