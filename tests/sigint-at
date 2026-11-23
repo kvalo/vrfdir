@@ -34,7 +34,8 @@ def main():
         nonlocal count
         count += 1
         if count == n:
-            os.kill(os.getpid(), signal.SIGINT)
+            # not os.kill(), which kills the process on Windows
+            signal.raise_signal(signal.SIGINT)
         return file_digest(*args, **kwargs)
 
     hashlib.file_digest = hooked_file_digest

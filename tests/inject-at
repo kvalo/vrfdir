@@ -50,8 +50,9 @@ def fail_with(exception):
     return action
 
 
+# raise_signal() and not os.kill(), which kills the process on Windows
 def send_sigint(*args):
-    os.kill(os.getpid(), signal.SIGINT)
+    signal.raise_signal(signal.SIGINT)
 
 
 # Change the first byte of the file which is about to be fsynced, as
