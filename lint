@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # Run linters. Requires flake8, shellcheck and mdl (markdownlint),
-# yamllint is optional.
+# yamllint and reuse are optional.
 
 set -eu
 
@@ -19,6 +19,13 @@ if command -v yamllint >/dev/null; then
     yamllint .github/workflows/*.yml
 else
     echo "lint: yamllint not found, skipping workflow check"
+fi
+
+# reuse is optional.
+if command -v reuse >/dev/null; then
+    reuse lint --lines
+else
+    echo "lint: reuse not found, skipping REUSE check"
 fi
 
 mdl README.md TODO.md CLAUDE.md CHANGELOG.md
