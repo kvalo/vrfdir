@@ -336,7 +336,15 @@ A commit must never break `git bisect`: every commit on its own has to
 pass `./check`, `./unit` and `./lint`, and CI on every system which
 `ci.yml` of that commit tests. Order the commits so that a fix comes
 before what needs it, for example a new CI job after the fixes which
-make its tests pass. Check every commit before pushing, e.g. with
-`git rebase --exec './check && ./unit && ./lint' main`. A commit on
-`staging` which breaks something is fixed by rebasing, not by a
-commit on top of it.
+make its tests pass. A commit on `staging` which breaks something is
+fixed by rebasing, not by a commit on top of it.
+
+Running all the tests on every commit takes a lot of time and is not
+needed. Run `./check`, `./unit` and `./lint` on the last commit of
+the series. For the commits before it, think about what each one
+changes and run only what could break, e.g. `./check -t <name>` of
+the tests it touches, or nothing for a commit which only changes
+documentation. Run the whole set on every commit, e.g. with
+`git rebase --exec './check && ./unit && ./lint' main`, only when
+the order of the commits matters, for example when a later commit
+fixes something which an earlier one needs.
