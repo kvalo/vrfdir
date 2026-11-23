@@ -156,35 +156,27 @@ Open questions, the tools have not been chosen yet:
 
 ## test on the other operating systems
 
-vrfdir has code for Windows and macOS (the '/' separator, names
-with a different case, junctions, names which cannot exist on
-Windows) but the tests are sh scripts. CI runs `./check` and
-`./unit` on `macos-latest`, where `tests/specs-macos/` tests the
-case and the normalisation form of names. So far the code for
-Windows and the BSDs is tried only by hand.
+CI runs `./check` and `./unit` on Linux, macOS and Windows, but
+nothing runs on the BSDs. Run `./check` on a real BSD machine, and try
+a symbolic link to a directory and a file name which is not valid in
+the locale.
 
-Add tests which can run on Windows, for example a Python script
-which uses only the standard library, and try vrfdir on a real BSD
-machine. The pytest tests in `tests/unit` are meant for this: they
-call the functions in the same process and need no shell, so they
-can be run on a Windows runner and the tests of the code for that
-system (`skipif` on the real platform) run there.
+On Windows the tests run in Git Bash on the CI runner. These are not
+tested there and have to be tried by hand after a change:
 
-Until then, the code which no test reaches has to be tried by hand
-on each system after a change. What to try:
-
-- Windows: init, add and check of a directory with sub directories,
-  `vrfdir add dir\sub\file` gives the name `dir/sub/file`, and the
-  same manifest.json works on Linux. A repository from Linux with the
-  names `a:b`, `con.txt`, `x.` and `back\slash` is kept as it is
-  (status shows them as D, add and check do not touch them). A
-  junction to a directory is not followed. Replacing manifest.json
-  while another program has it open is retried.
-- Windows: `vrfdir add A` for a file `a` adds the name as it is on
-  the disk, adding `a` and `A` is one file, and `.VRFDIR` is the
-  repository directory and not data (macOS has tests for these).
-- the BSDs: run ./check, and try a symbolic link to a directory and a
-  file name which is not valid in the locale.
+- A directory which cannot be read, and init in a directory where
+  .vrfdir cannot be created. On the runner a deny entry of icacls on
+  a directory has no effect, most likely as its user is an
+  administrator with the backup privilege. A deny entry of a file
+  works and is tested.
+- vrfdir started with the `py` launcher from cmd and PowerShell, as
+  README.md tells, and its output in the console.
+- Ctrl-C in a real console. The tests raise SIGINT in the process,
+  which tests the handler but not the console.
+- A path longer than 260 characters, with and without the long paths
+  enabled.
+- Replacing manifest.json while another program has it open. The unit
+  tests hold the file open in the same process.
 
 ## ignore the files the operating system creates
 
