@@ -3,7 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # test that a failure to write the output is an error with the
-# documented exit value, not a Python stacktrace
+# documented exit value, not a Python stacktrace. A closed stdout and
+# stderr are in tests/specs.
 
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -29,11 +30,6 @@ check_exit() {
 echo aaaa > a
 "$SRCDIR/vrfdir" add --quiet a
 
-# Python has no stdout at all then, nothing can fail
-echo stdout closed >&2
-check_exit 0 list >&-
-check_exit 0 --help >&-
-
 echo disk full >&2
 check_exit 3 list > /dev/full
 cat stderr.txt >&2
@@ -46,10 +42,6 @@ echo broken pipe >&2
 { sleep 0.2; check_exit 3 list; } | true
 cat stderr.txt >&2
 { sleep 0.2; check_exit 3 --help; } | true
-
-echo stderr closed >&2
-"$SRCDIR/vrfdir" no-such-command 2>&-
-echo "exit value: $?" >&2
 
 # cleanup
 rm -fr .vrfdir a stderr.txt

@@ -1,0 +1,43 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a closed stdout or stderr is not a Python stacktrace. A
+# write which fails, to a full disk or a broken pipe, is in
+# tests/specs-linux.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# run vrfdir with the given arguments, the caller redirects stdout
+check_exit() {
+    expected=$1
+    shift
+
+    "$SRCDIR/vrfdir" "$@" 2> stderr.txt
+    retval=$?
+
+    if [ $retval != "$expected" ]; then
+        echo "Wrong exit value: $retval" >&2
+    fi
+
+    # what Python prints by itself
+    grep -e Traceback -e 'Exception ignored' stderr.txt >&2
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+"$SRCDIR/vrfdir" add --quiet a
+
+# Python has no stdout at all then, nothing can fail
+echo stdout closed >&2
+check_exit 0 list >&-
+check_exit 0 --help >&-
+
+echo stderr closed >&2
+"$SRCDIR/vrfdir" no-such-command 2>&-
+echo "exit value: $?" >&2
+
+# cleanup
+rm -fr .vrfdir a stderr.txt
