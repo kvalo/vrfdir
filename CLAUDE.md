@@ -73,11 +73,7 @@ of this repository. It is available from
   read, symbolic links, named pipes, the flush of a directory, an
   argument like `/dev/null` (the sh of Git for Windows converts an
   absolute POSIX path for a Windows program), or an error text which
-  differs on Windows ("Not a directory", "Is a directory"). A test
-  which also has parts for every system is split: the part which needs
-  POSIX has the same name in `tests/specs-unix/`, so that `-t <name>`
-  runs both, and its Windows version, when there is one, the same name
-  in `tests/specs-windows/`.
+  differs on Windows ("Not a directory", "Is a directory").
 - A test which cannot work on macOS goes to `tests/specs-linux/`. That
   is a test which needs a file name which is not valid UTF-8 (APFS
   refuses it), names which differ only in the case or the
@@ -92,6 +88,15 @@ of this repository. It is available from
   (backslashes, names which cannot be files there, junctions) and the
   Windows versions of tests in `tests/specs-unix/`, run only on Windows
   (`uname -s` is `MINGW*` or `MSYS*`).
+- Only the part of a test which needs a system goes to the directory
+  of that system. A test which also has parts for every system is
+  split: those stay in `tests/specs/`, and the rest has the same name
+  in one `tests/specs-*/` directory, so that `-t <name>` runs both.
+  The rest stays together in the directory which its parts need, for
+  example `tests/specs-linux/` when one of them needs Linux, and is
+  not split again. The Windows version of a part in
+  `tests/specs-unix/`, when there is one, has the same name in
+  `tests/specs-windows/`.
 - Only CI and the user can run `tests/specs-macos/`,
   `tests/specs-caseless/` and `tests/specs-windows/`: say so when you
   add or change one, the expected output was not seen on a real
