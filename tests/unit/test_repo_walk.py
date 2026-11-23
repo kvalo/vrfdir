@@ -3,6 +3,7 @@
 
 import logging
 import os
+import sys
 
 import pytest
 
@@ -30,6 +31,14 @@ def make_symlink(target, link):
         os.symlink(target, link)
     except (OSError, NotImplementedError):
         pytest.skip('cannot create symbolic links here')
+
+
+# A junction is the link to a directory of Windows, Python does not see
+# it as a symbolic link.
+def make_junction(target, link):
+    import _winapi
+
+    _winapi.CreateJunction(os.path.abspath(target), link)
 
 
 def find(vrfdir, directory='.'):
@@ -109,6 +118,34 @@ def test_find_files_ignores_a_dangling_link(vrfdir, workdir):
     found, unreadable = find(vrfdir)
 
     assert found == ['x']
+    assert unreadable == []
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows junctions')
+def test_is_junction(vrfdir, workdir):
+    os.mkdir('dir')
+    make_junction('dir', 'junction')
+
+    assert vrfdir.is_junction('junction')
+    assert not vrfdir.is_junction('dir')
+    assert not vrfdir.is_junction('missing')
+
+    # also an entry of os.scandir()
+    with os.scandir('.') as entries:
+        by_name = {entry.name: entry for entry in entries}
+
+    assert vrfdir.is_junction(by_name['junction'])
+    assert not vrfdir.is_junction(by_name['dir'])
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows junctions')
+def test_find_files_does_not_follow_a_junction(vrfdir, workdir):
+    make_file('dir/a')
+    make_junction('dir', 'junction')
+
+    found, unreadable = find(vrfdir)
+
+    assert found == ['dir/a']
     assert unreadable == []
 
 

@@ -4,6 +4,8 @@
 import errno
 import hashlib
 import os
+import sys
+import time
 
 import pytest
 
@@ -144,3 +146,49 @@ def test_replace_file_does_not_retry_on_posix(vrfdir, monkeypatch):
         vrfdir.replace_file('src', 'dst')
 
     assert calls == [('src', 'dst')]
+
+
+# Windows cannot replace a file which another program has open without
+# FILE_SHARE_DELETE, and open() of Python does not use it. The file is
+# closed during the first wait, so the second try works.
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows retries')
+def test_replace_file_retries_while_the_file_is_open(vrfdir, tmp_path,
+                                                     monkeypatch):
+    src = tmp_path / 'src'
+    dst = tmp_path / 'dst'
+    src.write_text('new')
+    dst.write_text('old')
+    sleeps = []
+
+    with open(dst) as f:
+        def sleep(seconds):
+            sleeps.append(seconds)
+            f.close()
+
+        monkeypatch.setattr(time, 'sleep', sleep)
+
+        vrfdir.replace_file(str(src), str(dst))
+
+    assert sleeps == [vrfdir.REPLACE_RETRY_DELAY]
+    assert dst.read_text() == 'new'
+    assert not src.exists()
+
+
+@pytest.mark.skipif(sys.platform != 'win32', reason='Windows retries')
+def test_replace_file_gives_up_when_the_file_stays_open(vrfdir, tmp_path,
+                                                        monkeypatch):
+    src = tmp_path / 'src'
+    dst = tmp_path / 'dst'
+    src.write_text('new')
+    dst.write_text('old')
+    sleeps = []
+
+    monkeypatch.setattr(time, 'sleep', sleeps.append)
+
+    with open(dst):
+        with pytest.raises(PermissionError):
+            vrfdir.replace_file(str(src), str(dst))
+
+    assert len(sleeps) == vrfdir.REPLACE_RETRIES
+    assert dst.read_text() == 'old'
+    assert src.read_text() == 'new'
