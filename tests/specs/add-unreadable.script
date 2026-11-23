@@ -16,7 +16,7 @@ cd "$DATADIR" || exit 1
 echo aaaa > a
 echo bbbb > b
 echo cccc > c
-chmod 000 b
+"$SRCDIR/tests/unreadable" b
 
 "$SRCDIR/vrfdir" add --quiet a b c
 retval=$?
@@ -32,4 +32,5 @@ echo vrfdir status
 "$SRCDIR/vrfdir" status
 
 # cleanup
+"$SRCDIR/tests/unreadable" --undo b
 rm -fr .vrfdir a b c

@@ -18,7 +18,7 @@ echo aaaa > a
 echo bbbb > b
 echo cccc > c
 "$SRCDIR/vrfdir" add --quiet a b c
-chmod 000 b
+"$SRCDIR/tests/unreadable" b
 echo dddd > c
 
 "$SRCDIR/vrfdir" check --quiet
@@ -39,4 +39,5 @@ if [ $retval != 3 ]; then
 fi
 
 # cleanup
+"$SRCDIR/tests/unreadable" --undo b
 rm -fr .vrfdir a b c

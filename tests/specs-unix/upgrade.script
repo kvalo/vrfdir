@@ -2,11 +2,11 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test vrfdir upgrade with a file and a directory which cannot be read,
-# made so with chmod. The rest is in tests/specs.
+# test vrfdir upgrade with a directory which cannot be read, made so
+# with chmod. The rest is in tests/specs.
 #
-# Note: the unreadable file needs a normal user, which ./check makes
-# sure of.
+# Note: the unreadable directory needs a normal user, which ./check
+# makes sure of.
 #
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -28,30 +28,9 @@ make_v1() {
 }
 
 echo aaaa > a
-echo bbbb > b
 mkdir .vrfdir dir
 echo cccc > dir/c
-: > empty
 
-echo a file which cannot be read is an error and the others are upgraded
-make_v1 a b dir/c empty
-chmod 000 b
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-"$SRCDIR/vrfdir" list
-chmod 644 b
-
-echo
-echo corruption is more important than an error
-make_v1 a b dir/c empty
-echo xxxx > a
-chmod 000 b
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-chmod 644 b
-echo aaaa > a
-
-echo
 echo a directory which cannot be read is an error, its files are not upgraded
 make_v1 a dir/c
 chmod 000 dir
@@ -61,4 +40,4 @@ chmod 755 dir
 "$SRCDIR/vrfdir" list
 
 # cleanup
-rm -fr .vrfdir a b dir empty
+rm -fr .vrfdir a dir

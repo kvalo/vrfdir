@@ -5,8 +5,8 @@
 # test vrfdir upgrade, which replaces the MD5 checksums with SHA-256
 # checksums. A file is upgraded only if it still has its MD5 checksum.
 #
-# Note: this script must use bash, not dash. A file and a directory
-# which cannot be read are in tests/specs-unix and tests/specs-windows.
+# Note: this script must use bash, not dash. A directory which cannot
+# be read is in tests/specs-unix.
 #
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -82,6 +82,25 @@ rm b
 echo "exit value: $?"
 "$SRCDIR/vrfdir" list
 echo bbbb > b
+
+echo
+echo a file which cannot be read is an error and the others are upgraded
+make_v1 a b dir/c empty
+"$SRCDIR/tests/unreadable" b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+"$SRCDIR/tests/unreadable" --undo b
+
+echo
+echo corruption is more important than an error
+make_v1 a b dir/c empty
+echo xxxx > a
+"$SRCDIR/tests/unreadable" b
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/tests/unreadable" --undo b
+echo aaaa > a
 
 echo
 echo a name outside of the directory is not read, also if the file exists

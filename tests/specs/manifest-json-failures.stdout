@@ -19,6 +19,7 @@ checksum is a number
 checksum of version 1 is damaged
 version is not a number
 deep nesting
+no permission
 manifest.json missing
 no command
 unknown command

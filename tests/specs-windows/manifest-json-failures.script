@@ -6,17 +6,6 @@
 # version of tests/specs-unix/manifest-json-failures. The rest is in
 # tests/specs.
 
-# Windows has no chmod for this, take the right away from the user with
-# a deny entry. MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from
-# changing /deny to a path.
-deny() {
-    MSYS2_ARG_CONV_EXCL='*' icacls "$1" /deny "$USERNAME:($2)" > /dev/null
-}
-
-allow() {
-    MSYS2_ARG_CONV_EXCL='*' icacls "$1" /remove:d "$USERNAME" > /dev/null
-}
-
 # don't 'set -e' on purpose so that we can verify the exit values
 
 cd "$DATADIR" || exit 1
@@ -31,13 +20,6 @@ check_status() {
 }
 
 mkdir .vrfdir
-
-echo no permission
-echo '[{"version": 2, "files": {}}]' > .vrfdir/manifest.json
-deny .vrfdir/manifest.json RD
-check_status
-allow .vrfdir/manifest.json
-rm -f .vrfdir/manifest.json
 
 echo manifest.json is a directory
 mkdir .vrfdir/manifest.json

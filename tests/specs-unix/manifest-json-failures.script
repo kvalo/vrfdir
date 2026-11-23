@@ -3,8 +3,8 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # test that a broken manifest.json is reported as an error, the cases
-# which need a POSIX system: no permissions, the error texts and a name
-# with a backslash. The rest is in tests/specs.
+# which need a POSIX system: the error texts and a name with a
+# backslash. The rest is in tests/specs.
 
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -20,13 +20,6 @@ check_status() {
 }
 
 mkdir .vrfdir
-
-# Note: this does not work as root, which can read the file anyway.
-echo no permission
-echo '[{"version": 2, "files": {}}]' > .vrfdir/manifest.json
-chmod 000 .vrfdir/manifest.json
-check_status
-rm -f .vrfdir/manifest.json
 
 echo manifest.json is a directory
 mkdir .vrfdir/manifest.json

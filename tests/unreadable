@@ -1,0 +1,47 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Take the right to read a file away from the user, or give it back
+# with --undo, so that the same test works on every system. A POSIX
+# system has chmod for this. Windows has not, there it is a deny entry
+# of icacls. MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from
+# changing /deny to a path.
+#
+# Only for a file: on the CI runner a deny entry of a directory has no
+# effect, see TODO.md. The tests of a directory which cannot be read
+# use chmod and are in tests/specs-unix.
+#
+# usage: unreadable [--undo] FILE
+
+set -eu
+
+undo=
+if [ "${1-}" = --undo ]; then
+    undo=1
+    shift
+fi
+
+if [ $# != 1 ]; then
+    echo "usage: unreadable [--undo] FILE" >&2
+    exit 64
+fi
+
+case "$(uname -s)" in
+    MINGW* | MSYS*)
+        if [ -n "$undo" ]; then
+            MSYS2_ARG_CONV_EXCL='*' icacls "$1" /remove:d "$USERNAME" \
+                > /dev/null
+        else
+            MSYS2_ARG_CONV_EXCL='*' icacls "$1" /deny "$USERNAME:(RD)" \
+                > /dev/null
+        fi
+        ;;
+    *)
+        if [ -n "$undo" ]; then
+            chmod 644 "$1"
+        else
+            chmod 000 "$1"
+        fi
+        ;;
+esac

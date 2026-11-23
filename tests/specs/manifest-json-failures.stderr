@@ -19,4 +19,5 @@ Error: the repository .vrfdir/manifest.json is damaged: invalid checksum or size
 Error: the repository .vrfdir/manifest.json is damaged: invalid checksum of a
 Error: the repository .vrfdir/manifest.json is damaged: invalid version False
 Error: the repository .vrfdir/manifest.json is damaged: it is not valid JSON
+Error: cannot read the repository .vrfdir/manifest.json: Permission denied
 Error: cannot read the repository .vrfdir/manifest.json: No such file or directory

@@ -69,15 +69,15 @@ of this repository. It is available from
   one of the directories below (same format), chosen by `./check`
   with `uname -s`.
 - `tests/specs-unix/` is for a test which needs a POSIX system, run
-  everywhere but on Windows: chmod for a file or a directory which
-  cannot be read, symbolic links, named pipes, the flush of a
-  directory, an argument like `/dev/null` (the sh of Git for Windows
-  converts an absolute POSIX path for a Windows program), or an error
-  text which differs on Windows ("Not a directory", "Is a
-  directory"). A test which also has parts for every system is split:
-  the part which needs POSIX has the same name in `tests/specs-unix/`,
-  so that `-t <name>` runs both, and its Windows version, when there
-  is one, the same name in `tests/specs-windows/`.
+  everywhere but on Windows: chmod for a directory which cannot be
+  read, symbolic links, named pipes, the flush of a directory, an
+  argument like `/dev/null` (the sh of Git for Windows converts an
+  absolute POSIX path for a Windows program), or an error text which
+  differs on Windows ("Not a directory", "Is a directory"). A test
+  which also has parts for every system is split: the part which needs
+  POSIX has the same name in `tests/specs-unix/`, so that `-t <name>`
+  runs both, and its Windows version, when there is one, the same name
+  in `tests/specs-windows/`.
 - A test which cannot work on macOS goes to `tests/specs-linux/`. That
   is a test which needs a file name which is not valid UTF-8 (APFS
   refuses it), names which differ only in the case or the
@@ -91,10 +91,7 @@ of this repository. It is available from
 - `tests/specs-windows/` has the tests of the Windows behaviour
   (backslashes, names which cannot be files there, junctions) and the
   Windows versions of tests in `tests/specs-unix/`, run only on Windows
-  (`uname -s` is `MINGW*` or `MSYS*`). It makes a file unreadable
-  with a deny entry of icacls instead of chmod; on the CI runner a
-  deny entry of a directory has no effect, so it has no tests of a
-  directory without permissions.
+  (`uname -s` is `MINGW*` or `MSYS*`).
 - Only CI and the user can run `tests/specs-macos/`,
   `tests/specs-caseless/` and `tests/specs-windows/`: say so when you
   add or change one, the expected output was not seen on a real
@@ -103,6 +100,12 @@ of this repository. It is available from
 - Scripts work in `$DATADIR` (temporary directory), call
   `$SRCDIR/vrfdir` and `$SRCDIR/tests/genbackupdata`, and remove
   `.vrfdir` and their data at the end.
+- A file which cannot be read is made with
+  `$SRCDIR/tests/unreadable FILE`, and `--undo` gives the right back
+  before the cleanup. It uses chmod on a POSIX system and a deny entry
+  of icacls on Windows, so the test goes to `tests/specs/`. A
+  directory which cannot be read needs chmod and `tests/specs-unix/`:
+  on the CI runner a deny entry of a directory has no effect.
 - `filenames.script`, `filenames-invalid.script`, `encoding.script`
   and `scan.script` in `tests/specs-linux/` must stay bash, not sh: dash
   cannot create the weird filenames they need.

@@ -125,6 +125,13 @@ echo deep nesting
 head -c 100000 /dev/zero | tr '\0' '[' > .vrfdir/manifest.json
 check_status nopos
 
+# Note: this does not work as root, which can read the file anyway.
+echo no permission
+echo '[{"version": 2, "files": {}}]' > .vrfdir/manifest.json
+"$SRCDIR/tests/unreadable" .vrfdir/manifest.json
+check_status
+"$SRCDIR/tests/unreadable" --undo .vrfdir/manifest.json
+
 echo manifest.json missing
 rm -f .vrfdir/manifest.json
 check_status
