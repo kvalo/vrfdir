@@ -254,6 +254,15 @@ def discard_stdout():
 
 
 def run():
+    # The directory name is printed as the bytes it has, it does not
+    # need to be valid in the encoding of the locale. Do not write the
+    # newline as '\r\n' on Windows, also not in the messages and the
+    # help of argparse, so that the output is the same on every system.
+    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
+                           errors=sys.getfilesystemencodeerrors(),
+                           newline='\n')
+    sys.stderr.reconfigure(newline='\n')
+
     parser = GenArgumentParser(
         description='Generate deterministic test data for backup testing')
     parser.add_argument('--create', required=True, type=parse_size,
@@ -266,11 +275,6 @@ def run():
     parser.add_argument('directory', help='Target directory for test data')
 
     args = parser.parse_args()
-
-    # The directory name is printed as the bytes it has, it does not
-    # need to be valid in the encoding of the locale
-    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
-                           errors=sys.getfilesystemencodeerrors())
 
     total_size = args.create
 
