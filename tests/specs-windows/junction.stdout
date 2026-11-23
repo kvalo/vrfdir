@@ -1,0 +1,10 @@
+add everything
+exit value: 0
+the junction given on the command line is ignored
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            dir/a
+vrfdir status
+exit value: 0
+vrfdir check
+exit value: 0

@@ -1,0 +1,51 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the entries of manifest.json whose name cannot be a file name on
+# Windows, from a repository made on another system. They are kept as
+# they are: status shows them as deleted, check and add do not touch
+# them, and the next save writes them back unchanged, so that the
+# repository still works on the system where the files were added.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+mkdir .vrfdir
+echo aaaa > a
+echo bbbb > b
+
+# version 2 has no checksum of the content, so it can be written here
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 2, "files": {
+"a": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"a:b": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"back\\slash": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"bad-\udcff-name": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"con.txt": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"dir/nul": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5},
+"x.": {"checksum": "sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772", "size": 5}
+}}]
+EOF
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+echo add another file
+"$SRCDIR/vrfdir" add --quiet b
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo the names in the new manifest.json
+grep -o '"[^"]*": {"checksum"' .vrfdir/manifest.json | LC_ALL=C sort
+
+# cleanup
+rm -fr .vrfdir a b

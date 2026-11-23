@@ -1,0 +1,37 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a path from the command line with backslashes, the path
+# separator of Windows, is stored with '/' like on every other system,
+# so that the repository works also there
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+mkdir -p dir/sub
+echo aaaa > dir/sub/a
+echo bbbb > dir/sub/b
+
+echo a file
+"$SRCDIR/vrfdir" add --quiet 'dir\sub\a'
+echo "exit value: $?"
+
+echo a directory with a backslash in the end
+"$SRCDIR/vrfdir" add --quiet "dir\\sub\\"
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo the names in manifest.json
+grep -o '"[^"]*": {"checksum"' .vrfdir/manifest.json | LC_ALL=C sort
+
+# cleanup
+rm -fr .vrfdir dir

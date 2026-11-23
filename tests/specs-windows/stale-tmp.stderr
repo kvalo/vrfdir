@@ -1,0 +1,2 @@
+Warning: .vrfdir/manifest.json.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
+Error: cannot save the repository .vrfdir/manifest.json: Permission denied, the added files were not saved

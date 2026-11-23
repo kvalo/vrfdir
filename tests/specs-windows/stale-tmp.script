@@ -1,0 +1,33 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test a write of manifest.json which fails, the Windows version of
+# tests/specs-unix/stale-tmp. The rest is in tests/specs.
+
+# don't 'set -e' on purpose so that we can verify the exit value from
+# the add command
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a b
+
+echo write fails
+echo cccc > c
+mkdir .vrfdir/manifest.json.tmp
+"$SRCDIR/vrfdir" add --quiet c
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+echo manifest.json is not changed
+rmdir .vrfdir/manifest.json.tmp
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a b c

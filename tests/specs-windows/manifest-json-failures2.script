@@ -1,0 +1,23 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# more broken manifest.json files, the Windows version of
+# tests/specs-unix/manifest-json-failures2. The rest is in tests/specs.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+echo .vrfdir is a file
+echo foobar > .vrfdir
+for cmd in status check list export info 'add a'; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/vrfdir" $cmd
+    retval=$?
+    if [ $retval != 3 ]; then
+        echo "$cmd: Wrong exit value: $retval"
+    fi
+done
+
+# cleanup
+rm -f .vrfdir

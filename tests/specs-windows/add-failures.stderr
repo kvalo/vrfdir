@@ -1,0 +1,5 @@
+Error: cannot add nul: it is not a valid file name on this system
+Error: cannot add C:x: it is outside of the current directory
+Error: cannot add C:/x: it is outside of the current directory
+Error: cannot add /x: it is outside of the current directory
+Error: cannot add a/b: it does not exist

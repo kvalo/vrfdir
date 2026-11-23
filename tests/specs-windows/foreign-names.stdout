@@ -1,0 +1,32 @@
+vrfdir status
+D a:b
+? b
+D back\slash
+D bad-\xff-name
+D con.txt
+D dir/nul
+D x.
+exit value: 1
+vrfdir check
+6 file(s) deleted or changed, checksums not checked. Run 'vrfdir status' to see them
+exit value: 1
+add another file
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a:b
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            back\slash
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            bad-\xff-name
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            con.txt
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            dir/nul
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            x.
+the names in the new manifest.json
+"a": {"checksum"
+"a:b": {"checksum"
+"b": {"checksum"
+"back\\slash": {"checksum"
+"bad-\udcff-name": {"checksum"
+"con.txt": {"checksum"
+"dir/nul": {"checksum"
+"x.": {"checksum"

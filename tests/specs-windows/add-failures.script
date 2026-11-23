@@ -1,0 +1,44 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test paths which the add command must refuse, the ones of Windows:
+# a device name, the paths with a drive and the error texts. The rest is
+# in tests/specs.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+try_add() {
+    "$SRCDIR/vrfdir" add --quiet "$@"
+    retval=$?
+
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+
+echo device name
+try_add nul
+
+echo path relative to the current directory of the drive
+try_add 'C:x'
+
+echo absolute path with a drive
+try_add 'C:/x'
+
+echo absolute path without a drive
+try_add '\x'
+
+echo file as a directory
+try_add a/b
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a

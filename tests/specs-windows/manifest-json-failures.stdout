@@ -1,0 +1,6 @@
+no permission
+manifest.json is a directory
+backslash before the checksum
+1 file(s) deleted or changed, checksums not checked. Run 'vrfdir status' to see them
+exit value: 1
+md5:e5828c564f71fea3a12dde8bd5d27063  5            back\slash

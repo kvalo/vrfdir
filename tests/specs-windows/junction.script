@@ -1,0 +1,41 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a junction, the link to a directory of Windows, is not
+# followed, like a symbolic link to a directory on the other systems
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+mkdir dir
+echo aaaa > dir/a
+python3 -c 'import _winapi, os; _winapi.CreateJunction(os.path.abspath("dir"), "junction")'
+
+echo add everything
+"$SRCDIR/vrfdir" add --quiet .
+echo "exit value: $?"
+
+echo the junction given on the command line is ignored
+"$SRCDIR/vrfdir" add --quiet junction
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+echo vrfdir status
+"$SRCDIR/vrfdir" status
+echo "exit value: $?"
+
+echo vrfdir check
+"$SRCDIR/vrfdir" check --quiet
+echo "exit value: $?"
+
+# Remove the junction itself first, so that nothing goes through it to
+# the files of the directory.
+python3 -c 'import os; os.rmdir("junction")'
+
+# cleanup
+rm -fr .vrfdir dir

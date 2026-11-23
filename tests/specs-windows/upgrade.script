@@ -1,0 +1,73 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test vrfdir upgrade with a file and a directory which cannot be read,
+# the Windows version of tests/specs-unix/upgrade. The rest is in
+# tests/specs.
+
+# Windows has no chmod for this, take the right away from the user with
+# a deny entry. MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from
+# changing /deny to a path.
+deny() {
+    MSYS2_ARG_CONV_EXCL='*' icacls "$1" /deny "$USERNAME:($2)" > /dev/null
+}
+
+allow() {
+    MSYS2_ARG_CONV_EXCL='*' icacls "$1" /remove:d "$USERNAME" > /dev/null
+}
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# write a manifest.json of format version 1, which has only MD5
+# checksums, for the files. A file name must not need escaping.
+make_v1() {
+    sep=''
+    printf '[{"version": 1, "files": {' > .vrfdir/manifest.json
+    for f in "$@"; do
+        sum=$(md5sum "$f" | cut -d' ' -f1)
+        size=$(wc -c < "$f" | tr -d ' ')
+        printf '%s"%s": {"md5sum": "%s", "size": %d}' "$sep" "$f" "$sum" \
+            "$size" >> .vrfdir/manifest.json
+        sep=', '
+    done
+    printf '}}]\n' >> .vrfdir/manifest.json
+}
+
+echo aaaa > a
+echo bbbb > b
+mkdir .vrfdir dir
+echo cccc > dir/c
+: > empty
+
+echo a file which cannot be read is an error and the others are upgraded
+make_v1 a b dir/c empty
+deny b RD
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+allow b
+
+echo
+echo corruption is more important than an error
+make_v1 a b dir/c empty
+echo xxxx > a
+deny b RD
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+allow b
+echo aaaa > a
+
+echo
+echo a directory which cannot be read is an error, its files are not upgraded
+make_v1 a dir/c
+deny dir RD
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+allow dir
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a b dir empty
