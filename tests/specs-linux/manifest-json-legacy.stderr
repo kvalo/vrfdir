@@ -1,4 +1,1 @@
-Error: a repository already exists in this directory, not overwriting .vrfdir/hashes.json
-Error: the repository .vrfdir/hashes.json is damaged: it is not valid JSON (line 2, column 1)
-Error: the repository .vrfdir/hashes.json has format version 1 but this vrfdir knows only version 0, it was written by a newer vrfdir
 Error: the repository is saved in .vrfdir/manifest.json but cannot remove the old file .vrfdir/hashes.json: Is a directory. Remove it by hand
