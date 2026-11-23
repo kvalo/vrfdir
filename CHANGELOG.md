@@ -37,6 +37,11 @@ project adheres to [Semantic Versioning][semver].
 - `vrfdir list` and `vrfdir export` print the files sorted by the
   bytes of the name, not in the order they were added.
 
+### Fixed
+
+- On Windows the messages and the help ended the lines with CRLF,
+  now with a plain newline like the rest of the output.
+
 ## [0.1.0] - 2026-11-22
 
 ### Added

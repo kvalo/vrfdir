@@ -41,8 +41,8 @@ The rest of this document applies as it is, with these differences:
 
 - The names are always printed and stored with `/` as the separator,
   `dir/file.jpg`. On the command line both `/` and `\` work.
-- The output is UTF-8, also when it is redirected to a file, and the
-  lines end with a plain newline.
+- The output is UTF-8, also when it is redirected to a file. Its
+  lines and the messages end with a plain newline.
 - A path longer than 260 characters works only if long paths are
   enabled in Windows. Otherwise `add` and `check` report the file as
   an error.

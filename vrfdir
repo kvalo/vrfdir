@@ -1961,18 +1961,20 @@ def build_parser():
 
 
 def run_command():
+    # Write the file names as the bytes they have on the disk, also
+    # the names which are not valid in the encoding of the locale. On
+    # Windows this is UTF-8. Do not write the newline as '\r\n' there,
+    # also not in the messages and the help of argparse, so that the
+    # output is the same on every system.
+    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
+                           errors=sys.getfilesystemencodeerrors(),
+                           newline='\n')
+    sys.stderr.reconfigure(newline='\n')
+
     args = build_parser().parse_args()
 
     if args.debug:
         logger.setLevel(logging.DEBUG)
-
-    # Write the file names as the bytes they have on the disk, also
-    # the names which are not valid in the encoding of the locale. On
-    # Windows this is UTF-8. Do not write the newline as '\r\n' there
-    # so that the output is the same on every system.
-    sys.stdout.reconfigure(encoding=sys.getfilesystemencoding(),
-                           errors=sys.getfilesystemencodeerrors(),
-                           newline='\n')
 
     logger.debug('filesystem encoding: %s', sys.getfilesystemencoding())
 
