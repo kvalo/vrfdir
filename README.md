@@ -177,4 +177,7 @@ Free Software Foundation, either version 3 of the License, or (at your
 option) any later version. See
 [LICENSES/GPL-3.0-or-later.txt](LICENSES/GPL-3.0-or-later.txt).
 
-The project uses [SPDX](https://spdx.dev/) license tags.
+The project follows the [REUSE](https://reuse.software/)
+specification: every file has [SPDX](https://spdx.dev/) copyright and
+license tags in a header comment, or in `REUSE.toml` when it cannot
+have one. `reuse lint` checks it.
