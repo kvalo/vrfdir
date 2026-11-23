@@ -24,9 +24,11 @@ echo bbbb > b
 
 "$SRCDIR/vrfdir" list
 
-# make sure that we use exactly same format as sha256sum
+# make sure that we use exactly same format as sha256sum, the one of
+# Git for Windows marks the files with '*' as it reads them in binary
+# mode
 "$SRCDIR/vrfdir" export > 1.list
-sha256sum a b > 2.list
+sha256sum a b | sed 's/ \*/  /' > 2.list
 
 if ! cmp 1.list 2.list; then
     echo "export does not match sha256sum output!"

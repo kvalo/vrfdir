@@ -54,14 +54,15 @@ add_refused ../
 add_refused dir/../..
 add_refused a/../../x
 # also the absolute path of a file inside the directory, the name of the
-# temporary directory is not the same every time
+# temporary directory is not the same every time. On Windows the sh of
+# Git for Windows gives vrfdir the path as 'C:/...', not as $PWD.
 echo the absolute path of a file inside the directory
 message=$("$SRCDIR/vrfdir" add --quiet "$PWD/a" 2>&1)
 retval=$?
 if [ $retval != 3 ]; then
     echo Wrong exit value: $retval
 fi
-echo "$message" | sed "s#$PWD#PWD#"
+echo "$message" | sed 's#add .*/a:#add PWD/a:#'
 echo one refused path and nothing is added
 add_refused a dir/../..
 echo vrfdir list
