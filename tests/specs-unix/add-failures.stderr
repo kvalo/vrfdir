@@ -1,0 +1,4 @@
+Error: cannot add /dev/null: it is outside of the current directory
+Error: cannot add fifo: it is not a file or a directory
+Error: cannot add a/b: Not a directory
+Error: cannot add locked/b: Permission denied

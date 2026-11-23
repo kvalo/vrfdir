@@ -21,5 +21,3 @@ the size is a float
 the size is a boolean
 the second entry is broken
 every command stops with the same message
-.vrfdir is a file
-.vrfdir is a dangling symbolic link

@@ -106,10 +106,8 @@ echo vrfdir list
 echo ls .vrfdir
 ls .vrfdir
 
-echo add: full disk when flushing the directory, manifest.json is saved
-inject enospc-fsync 3 3 add --quiet b
-echo vrfdir list
-"$SRCDIR/vrfdir" list
+# full disk when flushing the directory is in tests/specs-unix, Windows
+# does not flush it
 rm -fr .vrfdir
 "$SRCDIR/vrfdir" init
 "$SRCDIR/vrfdir" add --quiet a

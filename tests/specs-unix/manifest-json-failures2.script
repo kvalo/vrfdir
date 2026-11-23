@@ -1,0 +1,32 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# more broken manifest.json files, the cases which need a POSIX system:
+# the error texts and a symbolic link. The rest is in tests/specs.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+every_command() {
+    for cmd in status check list export info 'add a'; do
+        # shellcheck disable=SC2086
+        "$SRCDIR/vrfdir" $cmd
+        retval=$?
+        if [ $retval != 3 ]; then
+            echo "$cmd: Wrong exit value: $retval"
+        fi
+    done
+}
+
+echo .vrfdir is a file
+echo foobar > .vrfdir
+every_command
+
+echo .vrfdir is a dangling symbolic link
+rm -f .vrfdir
+ln -s no-such-directory .vrfdir
+every_command
+
+# cleanup
+rm -f .vrfdir

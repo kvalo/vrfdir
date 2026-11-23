@@ -11,10 +11,13 @@ if [ "$(id -u)" = 0 ]; then
     exit 1
 fi
 
-# tests/specs-linux needs /dev/full, the error texts of Linux and names
-# which are not valid UTF-8, and tests/specs-macos the behaviour of
-# macOS, so each runs only on its system. The other systems run
-# tests/specs. --portable runs only that on every system.
+# tests/specs runs on every system, also on Windows with the sh of Git
+# for Windows. tests/specs-unix needs a POSIX system (chmod, symbolic
+# links, named pipes, the error texts), so it runs everywhere except on
+# Windows. tests/specs-linux needs /dev/full, the error texts of Linux
+# and names which are not valid UTF-8, and tests/specs-macos the
+# behaviour of macOS, so each runs only on its system. --portable runs
+# only tests/specs.
 portable=
 n=$#
 while [ "$n" -gt 0 ]; do
@@ -31,9 +34,10 @@ done
 set -- "$@" tests/specs
 if [ -z "$portable" ]; then
     case "$(uname -s)" in
-        Linux) set -- "$@" tests/specs-linux ;;
-        Darwin) set -- "$@" tests/specs-macos ;;
-        *) ;;
+        Linux) set -- "$@" tests/specs-unix tests/specs-linux ;;
+        Darwin) set -- "$@" tests/specs-unix tests/specs-macos ;;
+        MINGW* | MSYS*) ;;
+        *) set -- "$@" tests/specs-unix ;;
     esac
 fi
 

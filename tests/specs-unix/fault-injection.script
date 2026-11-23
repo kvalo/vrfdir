@@ -1,0 +1,28 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test a full disk when the .vrfdir directory is flushed after a save.
+# Windows does not flush it, the rest is in tests/specs.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a
+
+# The backup is saved first (the first fsync), then manifest.json (the
+# second one) and then the directory is flushed (the third one).
+echo add: full disk when flushing the directory, manifest.json is saved
+"$SRCDIR/tests/inject-at" enospc-fsync 3 "$SRCDIR/vrfdir" add --quiet b
+retval=$?
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a b

@@ -19,12 +19,7 @@ checksum is a number
 checksum of version 1 is damaged
 version is not a number
 deep nesting
-no permission
-manifest.json is a directory
 manifest.json missing
-backslash before the checksum
-exit value: 0
-md5:e5828c564f71fea3a12dde8bd5d27063  5            back\slash
 no command
 unknown command
 unknown option

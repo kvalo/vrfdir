@@ -4,6 +4,8 @@
 #
 # more broken manifest.json files, see manifest-json-failures. Every one
 # must be a message of vrfdir and the exit value 3, not a stacktrace.
+# The cases which depend on the system are in tests/specs-unix and
+# tests/specs-windows.
 # don't 'set -e' on purpose so that we can verify the exit values
 
 cd "$DATADIR" || exit 1
@@ -70,30 +72,6 @@ check_json '[{"version": 2, "files": {"a": {"checksum": "sha256:11a77c3d96c06974
 
 echo every command stops with the same message
 printf '%s\n' '[{"version": 2, "files": {}' > .vrfdir/manifest.json
-for cmd in status check list export info 'add a'; do
-    # shellcheck disable=SC2086
-    "$SRCDIR/vrfdir" $cmd
-    retval=$?
-    if [ $retval != 3 ]; then
-        echo "$cmd: Wrong exit value: $retval"
-    fi
-done
-
-echo .vrfdir is a file
-rm -fr .vrfdir
-echo foobar > .vrfdir
-for cmd in status check list export info 'add a'; do
-    # shellcheck disable=SC2086
-    "$SRCDIR/vrfdir" $cmd
-    retval=$?
-    if [ $retval != 3 ]; then
-        echo "$cmd: Wrong exit value: $retval"
-    fi
-done
-
-echo .vrfdir is a dangling symbolic link
-rm -f .vrfdir
-ln -s no-such-directory .vrfdir
 for cmd in status check list export info 'add a'; do
     # shellcheck disable=SC2086
     "$SRCDIR/vrfdir" $cmd

@@ -2,7 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# init must not overwrite an existing repository
+# init must not overwrite an existing repository, the cases which
+# depend on the system are in tests/specs-unix and tests/specs-windows
 
 # don't 'set -e' on purpose so that we can verify the exit value from
 # the init command
@@ -34,27 +35,5 @@ if [ $retval != 3 ]; then
     echo Wrong exit value: $retval
 fi
 
-echo .vrfdir is a dangling symbolic link
-rm -f .vrfdir
-ln -s no-such-directory .vrfdir
-"$SRCDIR/vrfdir" init
-retval=$?
-
-if [ $retval != 3 ]; then
-    echo Wrong exit value: $retval
-fi
-
-# Note: this does not work as root, which can write anyway.
-echo no permission to the directory
-rm -f .vrfdir
-mkdir locked
-chmod 555 locked
-(cd locked && "$SRCDIR/vrfdir" init)
-retval=$?
-
-if [ $retval != 3 ]; then
-    echo Wrong exit value: $retval
-fi
-
 # cleanup
-rm -fr .vrfdir a locked
+rm -fr .vrfdir a

@@ -45,10 +45,6 @@ sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5      
 ls .vrfdir
 manifest.json
 manifest.json.bak
-add: full disk when flushing the directory, manifest.json is saved
-vrfdir list
-sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
-sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
 init: manifest.json does not read back as written
 add: Ctrl-C when the directory is read, the repository is intact
 vrfdir list

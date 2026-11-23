@@ -5,8 +5,8 @@
 # test vrfdir upgrade, which replaces the MD5 checksums with SHA-256
 # checksums. A file is upgraded only if it still has its MD5 checksum.
 #
-# Note: this script must use bash, not dash. The unreadable file needs
-# a normal user, which ./check makes sure of.
+# Note: this script must use bash, not dash. A file and a directory
+# which cannot be read are in tests/specs-unix and tests/specs-windows.
 #
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -84,25 +84,6 @@ echo "exit value: $?"
 echo bbbb > b
 
 echo
-echo a file which cannot be read is an error and the others are upgraded
-make_v1 a b dir/c empty
-chmod 000 b
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-"$SRCDIR/vrfdir" list
-chmod 644 b
-
-echo
-echo corruption is more important than an error
-make_v1 a b dir/c empty
-echo xxxx > a
-chmod 000 b
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-chmod 644 b
-echo aaaa > a
-
-echo
 echo a name outside of the directory is not read, also if the file exists
 echo cccc > ../outside
 make_v1 a b
@@ -114,15 +95,6 @@ rm ../outside
 echo export does not work while it has the MD5 checksum
 "$SRCDIR/vrfdir" export 2>&1
 echo "exit value: $?"
-
-echo
-echo a directory which cannot be read is an error, its files are not upgraded
-make_v1 a dir/c
-chmod 000 dir
-"$SRCDIR/vrfdir" upgrade --quiet
-echo "exit value: $?"
-chmod 755 dir
-"$SRCDIR/vrfdir" list
 
 echo
 echo progress is shown without --quiet and ends with a line

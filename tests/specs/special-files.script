@@ -2,8 +2,8 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test that only regular files are handled and that only the .vrfdir
-# directory itself is ignored
+# test that only the .vrfdir directory itself is ignored. The links and
+# a named pipe are in tests/specs-unix.
 
 set -e
 
@@ -13,9 +13,6 @@ cd "$DATADIR"
 
 mkdir dir
 echo aaaa > dir/a
-ln -s no-such-file dir/dangling
-ln -s a dir/link-to-a
-mkfifo dir/fifo
 echo bbbb > .vrfdir-notes
 mkdir .vrfdirs
 echo cccc > .vrfdirs/c

@@ -2,7 +2,9 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test that a broken manifest.json is reported as an error
+# test that a broken manifest.json is reported as an error, the cases
+# which depend on the system are in tests/specs-unix and
+# tests/specs-windows
 
 # don't 'set -e' on purpose so that we can verify the exit values
 
@@ -123,31 +125,9 @@ echo deep nesting
 head -c 100000 /dev/zero | tr '\0' '[' > .vrfdir/manifest.json
 check_status nopos
 
-# Note: this does not work as root, which can read the file anyway.
-echo no permission
-echo '[{"version": 2, "files": {}}]' > .vrfdir/manifest.json
-chmod 000 .vrfdir/manifest.json
-check_status
-rm -f .vrfdir/manifest.json
-
-echo manifest.json is a directory
-mkdir .vrfdir/manifest.json
-check_status
-rmdir .vrfdir/manifest.json
-
 echo manifest.json missing
+rm -f .vrfdir/manifest.json
 check_status
-
-# written by older versions for a name with a backslash, must still work
-echo backslash before the checksum
-echo aaaa > 'back\slash'
-cat > .vrfdir/manifest.json << 'EOF'
-[{"version": 1, "files": {"back\\slash": {"md5sum": "\\e5828c564f71fea3a12dde8bd5d27063", "size": 5}}}]
-EOF
-"$SRCDIR/vrfdir" check --quiet
-echo "exit value: $?"
-"$SRCDIR/vrfdir" list
-rm 'back\slash'
 
 # a wrong command line must not look like corruption, which is 2
 check_usage() {

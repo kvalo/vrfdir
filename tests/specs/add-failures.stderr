@@ -1,8 +1,4 @@
 Error: cannot add no-such-file: it does not exist
 Error: cannot add ../a: it is outside of the current directory
-Error: cannot add /dev/null: it is outside of the current directory
 Error: cannot add .vrfdir/manifest.json: it is inside .vrfdir, the directory of vrfdir itself
-Error: cannot add fifo: it is not a file or a directory
 Error: cannot add '': empty file name
-Error: cannot add a/b: Not a directory
-Error: cannot add locked/b: Permission denied

@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# init must not overwrite an existing repository, the cases which need
+# a POSIX system: a symbolic link and a directory without permissions.
+# The rest is in tests/specs.
+
+# don't 'set -e' on purpose so that we can verify the exit value from
+# the init command
+
+cd "$DATADIR" || exit 1
+
+echo .vrfdir is a dangling symbolic link
+ln -s no-such-directory .vrfdir
+"$SRCDIR/vrfdir" init
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# Note: this does not work as root, which can write anyway.
+echo no permission to the directory
+rm -f .vrfdir
+mkdir locked
+chmod 555 locked
+(cd locked && "$SRCDIR/vrfdir" init)
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+# cleanup
+rm -fr locked
