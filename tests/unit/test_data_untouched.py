@@ -16,7 +16,8 @@ from conftest import SRCDIR
 # Nothing which can copy, move or delete files by itself or run
 # another program. Every module vrfdir imports is listed.
 ALLOWED_IMPORTS = {'argparse', 'errno', 'hashlib', 'heapq', 'itertools',
-                   'logging', 'json', 'os', 're', 'stat', 'sys', 'time'}
+                   'locale', 'logging', 'json', 'os', 'platform', 're',
+                   'stat', 'sys', 'time'}
 
 # functions of os which change a file, a directory or what is run
 OS_WRITERS = {

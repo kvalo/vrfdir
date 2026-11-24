@@ -192,3 +192,17 @@ def test_replace_file_gives_up_when_the_file_stays_open(vrfdir, tmp_path,
     assert len(sleeps) == vrfdir.REPLACE_RETRIES
     assert dst.read_text() == 'old'
     assert src.read_text() == 'new'
+
+
+def test_environment_info(vrfdir):
+    info = vrfdir.environment_info()
+    assert [key for (key, _, _) in info] == [
+        'vrfdir', 'python', 'system', 'fs_encoding', 'locale_encoding',
+        'case_insensitive']
+    values = {key: value for (key, _, value) in info}
+    assert values['vrfdir'] == vrfdir.version_string()
+    assert values['python'].startswith('%d.%d.%d ' % sys.version_info[:3])
+    assert values['fs_encoding'].startswith(sys.getfilesystemencoding())
+    # nothing personal
+    for value in values.values():
+        assert os.path.expanduser('~') not in value

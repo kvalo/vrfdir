@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test info --full. The values depend on the machine, so only the
+# labels and the keys are compared.
+
+set -e
+
+cd "$DATADIR"
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+"$SRCDIR/vrfdir" add --quiet a
+
+echo "--- without --full"
+"$SRCDIR/vrfdir" info | grep -c Environment || true
+
+echo "--- --full"
+"$SRCDIR/vrfdir" info --full > full.txt
+sed -n '/^Environment:/,$p' full.txt | sed 's/:.*//'
+# the part before Environment is the same as without --full
+sed '/^Environment:/q' full.txt | sed '$d' | sed '$d' > head.txt
+"$SRCDIR/vrfdir" info > plain.txt
+cmp -s plain.txt head.txt && echo "same as info"
+
+echo "--- -f -m"
+"$SRCDIR/vrfdir" info -f -m | grep '^env\.' | sed 's/=.*//'
+
+echo "--- -m only"
+"$SRCDIR/vrfdir" info -m | grep -c '^env\.' || true
+
+# cleanup
+rm -fr .vrfdir a full.txt head.txt plain.txt

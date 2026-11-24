@@ -9,7 +9,9 @@ import heapq
 import itertools
 import logging
 import json
+import locale
 import os
+import platform
 import re
 import stat
 import sys
@@ -53,6 +55,34 @@ def version_string():
     return '%s.%s' % (VERSION, digest)
 
 
+def environment_info():
+    '''Return (key, label, value) of the system for a bug report.
+
+    Nothing personal: no user name, host name, directory or environment
+    variable.
+    '''
+
+    return [
+        ('vrfdir', 'vrfdir', version_string()),
+        ('python', 'Python', '%s (%s)' % (
+            platform.python_version(), platform.python_implementation())),
+        ('system', 'System', '%s %s %s' % (
+            platform.system(), platform.release(), platform.machine())),
+        ('fs_encoding', 'Name encoding', '%s (%s)' % (
+            sys.getfilesystemencoding(), sys.getfilesystemencodeerrors())),
+        ('locale_encoding', 'Locale',
+         locale.getpreferredencoding(False)),
+        ('case_insensitive', 'Case', 'insensitive' if CASE_INSENSITIVE
+         else 'sensitive'),
+    ]
+
+
+def print_environment():
+    print('Environment:')
+    for (_, label, value) in environment_info():
+        print('  %-15s%s' % (label + ':', value))
+
+
 MANIFEST_VERSION = 3
 
 # The manifest.json of this version has the MD5 checksum in the 'md5sum'
@@ -82,6 +112,7 @@ CHECKSUM_RE = re.compile('(md5:[0-9a-f]{32}|sha256:[0-9a-f]{64})')
 
 # The exit codes, the same in every command. Every sys.exit() has to
 # use one of these, and they are described in the help texts below.
+EXIT_OK = 0
 EXIT_DIFFERENCES = 1
 EXIT_CORRUPTION = 2
 EXIT_ERROR = 3
@@ -1559,6 +1590,9 @@ def cmd_info(args):
         for (i, (size, name)) in enumerate(stats['Largest'], 1):
             (marker, name) = escape_name(name)
             print('largest.%d=%s%d %s' % (i, marker, size, name))
+        if args.full:
+            for (key, _, value) in environment_info():
+                print('env.%s=%s' % (key, value))
         return
 
     print('Format:       version %d' % stats['FileVersion'])
@@ -1585,6 +1619,10 @@ def cmd_info(args):
         for (size, name) in stats['Largest']:
             (marker, name) = escape_name(name)
             print('  %9s  %s%s' % (bytes2human(size), marker, name))
+
+    if args.full:
+        print()
+        print_environment()
 
 
 # The descriptions for --help. They are printed as they are, so keep
@@ -1837,6 +1875,16 @@ manifest (empty when there is no checksum), files, size, sha256, md5,
 foreign and largest.N (size in bytes, a space and the name), without
 the hints.
 
+With --full the output ends with an Environment section, for bug
+reports: the version of vrfdir, Python and the system, the encoding
+of the file names and of the locale and whether the names are case
+sensitive. It has nothing about the user, the host or the directory.
+'vrfdir --full-version' prints the version and the same section
+without a repository, for when the repository is the problem.
+With --machine-readable these are the last lines, as env.vrfdir,
+env.python, env.system, env.fs_encoding, env.locale_encoding and
+env.case_insensitive.
+
 exit codes:
   0    the information was printed
   3    error, for example the repository is missing or cannot be
@@ -1864,6 +1912,25 @@ exit codes:
   64   wrong command line
   130  interrupted
 '''
+
+
+class FullVersionAction(argparse.Action):
+    '''Print the version and the environment and exit.
+
+    Like --version, it needs no repository, so it works when the
+    repository is the problem.
+    '''
+
+    def __init__(self, option_strings, dest=argparse.SUPPRESS,
+                 default=argparse.SUPPRESS, help=None):
+        super().__init__(option_strings, dest=dest, default=default,
+                         nargs=0, help=help)
+
+    def __call__(self, parser, namespace, values, option_string=None):
+        print('%s %s' % (parser.prog, version_string()))
+        print()
+        print_environment()
+        parser.exit(EXIT_OK)
 
 
 # argparse exits with 2 on a wrong command line, which is corruption
@@ -1897,6 +1964,9 @@ def build_parser():
     parser.add_argument('-V', '--version', action='version',
                         version='%(prog)s ' + version_string(),
                         help='print the version and exit')
+    parser.add_argument('-F', '--full-version', action=FullVersionAction,
+                        help='print the version and the environment '
+                        '(Python, system) for bug reports and exit')
     subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
                                        dest='command', required=True)
 
@@ -1949,6 +2019,9 @@ def build_parser():
         help='show information about the repository')
     parser_info.add_argument('-m', '--machine-readable', action='store_true',
                              help='print exact values as key=value lines')
+    parser_info.add_argument('-f', '--full', action='store_true',
+                             help='also print the version of vrfdir, '
+                             'Python and the system, for bug reports')
     parser_info.set_defaults(func=cmd_info)
 
     parser_scan = subparsers.add_parser(

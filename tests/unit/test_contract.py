@@ -56,6 +56,7 @@ def test_options_have_short_and_long_forms(vrfdir):
 
 def test_exit_codes(vrfdir):
     assert exit_defines(vrfdir) == {
+        'EXIT_OK': 0,
         'EXIT_DIFFERENCES': 1,
         'EXIT_CORRUPTION': 2,
         'EXIT_ERROR': 3,

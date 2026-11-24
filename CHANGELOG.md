@@ -31,6 +31,9 @@ project adheres to [Semantic Versioning][semver].
   on Windows, which cannot do it.
 
 - `-V` is the short form of `--version`.
+- `vrfdir info --full` (`-f`) also prints the version of vrfdir,
+  Python and the system, for bug reports. `vrfdir --full-version`
+  prints the same without a repository.
 
 ### Changed
 

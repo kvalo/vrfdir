@@ -125,6 +125,14 @@ refuses to print anything while a file still has an MD5 checksum.
   stored next to the files, so they do not protect against somebody
   modifying both on purpose.
 
+### Reporting a bug
+
+Please attach the output of `vrfdir info --full` to a bug report. Its
+last lines have the version of vrfdir, Python and the system, and
+nothing about you or your files. If the repository is broken and
+`info` cannot read it, `vrfdir --full-version` prints the same
+without a repository.
+
 ## Development
 
 ### Requirements

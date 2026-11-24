@@ -1,0 +1,20 @@
+--- without --full
+0
+--- --full
+Environment
+  vrfdir
+  Python
+  System
+  Name encoding
+  Locale
+  Case
+same as info
+--- -f -m
+env.vrfdir
+env.python
+env.system
+env.fs_encoding
+env.locale_encoding
+env.case_insensitive
+--- -m only
+0
