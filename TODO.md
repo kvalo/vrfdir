@@ -156,10 +156,10 @@ Open questions, the tools have not been chosen yet:
 
 ## test on the other operating systems
 
-CI runs `./check` and `./unit` on Linux, macOS and Windows, but
-nothing runs on the BSDs. Run `./check` on a real BSD machine, and try
-a symbolic link to a directory and a file name which is not valid in
-the locale.
+CI runs `./check` and `./unit` on Linux, FreeBSD, macOS and Windows,
+but nothing runs on OpenBSD and NetBSD. Run `./check` on a real
+OpenBSD and NetBSD machine, and try a symbolic link to a directory and
+a file name which is not valid in the locale.
 
 On Windows the tests run in Git Bash on the CI runner. These are not
 tested there and have to be tried by hand after a change:

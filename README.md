@@ -19,8 +19,9 @@ a backup to restore a corrupted file from.
 - Python 3.11 or later
 - Linux, one of the BSDs, macOS or Windows
 
-vrfdir is developed on Linux, and its tests are run also on macOS and
-Windows. The BSDs are supported but tested less. See
+vrfdir is developed on Linux, and its tests are run also on FreeBSD,
+macOS and Windows. OpenBSD and NetBSD are supported but tested less.
+See
 [Windows](#windows) below for the differences there.
 
 That is all. vrfdir is one file which uses only the Python standard

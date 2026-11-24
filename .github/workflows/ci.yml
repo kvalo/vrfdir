@@ -101,6 +101,43 @@ jobs:
       - name: Run unit tests
         run: ./unit
 
+  test-freebsd:
+    # GitHub has no BSD runners, the tests run in a VM.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cross-platform-actions/action@v1.8.0
+        env:
+          CMDSPECS: ${{ env.CMDSPECS }}
+        with:
+          operating_system: freebsd
+          version: "15.1"
+          environment_variables: CMDSPECS
+          run: |
+            # The tests use sha256sum, md5sum, wc, od and sed -i of GNU
+            # coreutils and sed, FreeBSD has the BSD versions. The
+            # GNU ones are installed with the prefix g, link them
+            # under their normal names. Some scripts need bash in
+            # /bin.
+            sudo pkg install -y python3 git bash coreutils gsed
+            sudo ln -s /usr/local/bin/bash /bin/bash
+            mkdir "$HOME/gnubin"
+            for gtool in $(pkg info -l coreutils gsed |
+                           grep -o '/usr/local/bin/g.*'); do
+              ln -s "$gtool" "$HOME/gnubin/$(basename "$gtool" | cut -c2-)"
+            done
+            PATH="$HOME/gnubin:$PATH"
+            export PATH
+            python3 -m venv "$HOME/venv"
+            "$HOME/venv/bin/pip" install "$CMDSPECS" pytest
+            PATH="$HOME/venv/bin:$PATH"
+            export PATH
+            status=0
+            ./check || status=1
+            # also when ./check failed, so that both are seen
+            ./unit || status=1
+            exit $status
+
   test-windows:
     runs-on: windows-latest
     defaults:
