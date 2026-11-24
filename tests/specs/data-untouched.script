@@ -1,0 +1,169 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that vrfdir only writes in .vrfdir and never changes the data
+# of the user: not the names, the content or the modification time of
+# the files and the directories, whatever the command does and also
+# when it fails.
+#
+# The data is in the directory data, so that the files of this script
+# are not in it. Every file and directory is given an old modification
+# time before a command, so that a change of any of them, even a write
+# of the same bytes, makes it newer than the file ref.
+#
+# Note: this does not work as root, which can read the file anyway.
+#
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+mkdir data
+cd data || exit 1
+
+# the list of the names, then the checksum of every file, but not of
+# what is in .vrfdir
+snapshot() {
+    find . -path ./.vrfdir -prune -o -print | LC_ALL=C sort
+    find . -path ./.vrfdir -prune -o -type f -print | LC_ALL=C sort |
+        while read -r f; do
+            sha256sum "$f"
+        done
+}
+
+# give the data an old modification time (2000) and then make ref
+# which is newer (2001), but still older than any change which
+# vrfdir could make
+prepare() {
+    find . -path ./.vrfdir -prune -o -exec touch -t 200001010000 {} +
+    touch -t 200101010000 ../ref
+    snapshot > ../before
+}
+
+untouched() {
+    snapshot > ../after
+    if cmp -s ../before ../after; then
+        echo "$1: names and content are the same"
+    else
+        echo "$1: THE NAMES OR THE CONTENT CHANGED"
+        diff ../before ../after
+    fi
+
+    newer=$(find . -path ./.vrfdir -prune -o ! -name . -newer ../ref -print)
+    if [ -z "$newer" ]; then
+        echo "$1: modification times are the same"
+    else
+        echo "$1: A MODIFICATION TIME CHANGED"
+        echo "$newer"
+    fi
+}
+
+# run the command, print its exit value and check the data
+run() {
+    "$SRCDIR/vrfdir" "$@" > ../out 2>&1
+    echo "vrfdir $1: exit value $?"
+    untouched "vrfdir $1"
+}
+
+"$SRCDIR/tests/genbackupdata" --quiet --create 200k gen
+echo aaaa > a
+: > empty
+mkdir -p dir/sub
+echo bbbb > dir/b
+echo cccc > dir/sub/c
+prepare
+
+echo
+echo a normal repository
+run init
+run add --quiet a empty dir gen
+run list
+run export
+run info
+run scan
+run status
+run check --quiet
+run upgrade --quiet
+
+echo
+echo a file with the same size and other content
+echo AAAA > a
+prepare
+run status
+run check --quiet
+run upgrade --quiet
+
+echo
+echo a deleted and a new file
+rm dir/b
+echo dddd > dir/d
+prepare
+run status
+run check --quiet
+run upgrade --quiet
+run add --quiet dir
+
+echo
+echo a file which cannot be read
+echo eeee > e
+prepare
+"$SRCDIR/tests/unreadable" e
+for cmd in "add --quiet e" status "check --quiet"; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/vrfdir" $cmd > ../out 2>&1
+    echo "vrfdir $cmd: exit value $?"
+done
+"$SRCDIR/tests/unreadable" --undo e
+untouched "the file which cannot be read"
+
+echo
+echo a repository of the old format
+prepare
+rm -fr .vrfdir
+mkdir .vrfdir
+echo '[{"version": 0, "files": {}}]' > .vrfdir/hashes.json
+run add --quiet a
+ls .vrfdir
+
+echo
+echo a manifest.json which is damaged
+prepare
+cp .vrfdir/manifest.json ../manifest.good
+echo garbage > .vrfdir/manifest.json
+run status
+run check --quiet
+run add --quiet a
+run upgrade --quiet
+cp ../manifest.good .vrfdir/manifest.json
+
+echo
+echo a stale temporary file
+prepare
+echo garbage > .vrfdir/manifest.json.tmp
+run add --quiet dir
+rm -f .vrfdir/manifest.json.tmp
+
+echo
+echo a failure while the repository is saved
+prepare
+for kind in enospc-fsync corrupt-fsync; do
+    echo dddd > f
+    touch -t 200001010000 f
+    "$SRCDIR/tests/inject-at" $kind 1 "$SRCDIR/vrfdir" add --quiet f \
+        > ../out 2>&1
+    echo "add with $kind: exit value $?"
+    rm f
+    untouched "add with $kind"
+done
+
+echo
+echo a failure while a file is hashed
+prepare
+"$SRCDIR/tests/inject-at" eio-hash 2 "$SRCDIR/vrfdir" check --quiet \
+    > ../out 2>&1
+echo "check with eio-hash: exit value $?"
+untouched "check with eio-hash"
+
+# cleanup
+cd "$DATADIR" || exit 1
+rm -fr data ref before after out manifest.good

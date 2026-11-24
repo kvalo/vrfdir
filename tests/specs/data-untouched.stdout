@@ -1,0 +1,100 @@
+
+a normal repository
+vrfdir init: exit value 0
+vrfdir init: names and content are the same
+vrfdir init: modification times are the same
+vrfdir add: exit value 0
+vrfdir add: names and content are the same
+vrfdir add: modification times are the same
+vrfdir list: exit value 0
+vrfdir list: names and content are the same
+vrfdir list: modification times are the same
+vrfdir export: exit value 0
+vrfdir export: names and content are the same
+vrfdir export: modification times are the same
+vrfdir info: exit value 0
+vrfdir info: names and content are the same
+vrfdir info: modification times are the same
+vrfdir scan: exit value 0
+vrfdir scan: names and content are the same
+vrfdir scan: modification times are the same
+vrfdir status: exit value 0
+vrfdir status: names and content are the same
+vrfdir status: modification times are the same
+vrfdir check: exit value 0
+vrfdir check: names and content are the same
+vrfdir check: modification times are the same
+vrfdir upgrade: exit value 0
+vrfdir upgrade: names and content are the same
+vrfdir upgrade: modification times are the same
+
+a file with the same size and other content
+vrfdir status: exit value 0
+vrfdir status: names and content are the same
+vrfdir status: modification times are the same
+vrfdir check: exit value 2
+vrfdir check: names and content are the same
+vrfdir check: modification times are the same
+vrfdir upgrade: exit value 0
+vrfdir upgrade: names and content are the same
+vrfdir upgrade: modification times are the same
+
+a deleted and a new file
+vrfdir status: exit value 1
+vrfdir status: names and content are the same
+vrfdir status: modification times are the same
+vrfdir check: exit value 1
+vrfdir check: names and content are the same
+vrfdir check: modification times are the same
+vrfdir upgrade: exit value 0
+vrfdir upgrade: names and content are the same
+vrfdir upgrade: modification times are the same
+vrfdir add: exit value 0
+vrfdir add: names and content are the same
+vrfdir add: modification times are the same
+
+a file which cannot be read
+vrfdir add --quiet e: exit value 3
+vrfdir status: exit value 1
+vrfdir check --quiet: exit value 1
+the file which cannot be read: names and content are the same
+the file which cannot be read: modification times are the same
+
+a repository of the old format
+vrfdir add: exit value 0
+vrfdir add: names and content are the same
+vrfdir add: modification times are the same
+manifest.json
+manifest.json.bak
+
+a manifest.json which is damaged
+vrfdir status: exit value 3
+vrfdir status: names and content are the same
+vrfdir status: modification times are the same
+vrfdir check: exit value 3
+vrfdir check: names and content are the same
+vrfdir check: modification times are the same
+vrfdir add: exit value 3
+vrfdir add: names and content are the same
+vrfdir add: modification times are the same
+vrfdir upgrade: exit value 3
+vrfdir upgrade: names and content are the same
+vrfdir upgrade: modification times are the same
+
+a stale temporary file
+vrfdir add: exit value 0
+vrfdir add: names and content are the same
+vrfdir add: modification times are the same
+
+a failure while the repository is saved
+add with enospc-fsync: exit value 3
+add with enospc-fsync: names and content are the same
+add with enospc-fsync: modification times are the same
+add with corrupt-fsync: exit value 3
+add with corrupt-fsync: names and content are the same
+add with corrupt-fsync: modification times are the same
+
+a failure while a file is hashed
+check with eio-hash: exit value 3
+check with eio-hash: names and content are the same
+check with eio-hash: modification times are the same
