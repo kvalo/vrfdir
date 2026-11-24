@@ -138,6 +138,40 @@ jobs:
             ./unit || status=1
             exit $status
 
+  test-openbsd:
+    # See test-freebsd.
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: cross-platform-actions/action@v1.8.0
+        env:
+          CMDSPECS: ${{ env.CMDSPECS }}
+        with:
+          operating_system: openbsd
+          version: "8.0"
+          environment_variables: CMDSPECS
+          run: |
+            # Same as FreeBSD: the GNU tools have the prefix g and
+            # some scripts need bash in /bin.
+            sudo pkg_add python%3.14 py3-pip git bash coreutils gsed
+            sudo ln -s /usr/local/bin/bash /bin/bash
+            mkdir "$HOME/gnubin"
+            for gtool in $(pkg_info -L coreutils gsed |
+                           grep '^/usr/local/bin/g'); do
+              ln -s "$gtool" "$HOME/gnubin/$(basename "$gtool" | cut -c2-)"
+            done
+            PATH="$HOME/gnubin:$PATH"
+            export PATH
+            python3.14 -m venv "$HOME/venv"
+            "$HOME/venv/bin/pip" install "$CMDSPECS" pytest
+            PATH="$HOME/venv/bin:$PATH"
+            export PATH
+            status=0
+            ./check || status=1
+            # also when ./check failed, so that both are seen
+            ./unit || status=1
+            exit $status
+
   test-windows:
     runs-on: windows-latest
     defaults:
