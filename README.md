@@ -127,11 +127,13 @@ refuses to print anything while a file still has an MD5 checksum.
 
 ### Reporting a bug
 
-Please attach the output of `vrfdir info --full` to a bug report. Its
-last lines have the version of vrfdir, Python and the system, and
-nothing about you or your files. If the repository is broken and
-`info` cannot read it, `vrfdir --full-version` prints the same
-without a repository.
+Please report bugs on the [Issues page][issues] of the project in
+GitHub and attach the output of `vrfdir info --full`. Its last lines
+have the version of vrfdir, Python and the system, and nothing about
+you or your files. If the repository is broken and `info` cannot read
+it, `vrfdir --full-version` prints the same without a repository.
+
+[issues]: https://github.com/kvalo/vrfdir/issues
 
 ## Development
 
