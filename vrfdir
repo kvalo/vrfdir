@@ -35,7 +35,7 @@ VRFDIR_BACKUP_TMP_PATH = VRFDIR_BACKUP_PATH + '.tmp'
 # The release of vrfdir, following Semantic Versioning. It has nothing to
 # do with MANIFEST_VERSION. '+git' marks a version which is not
 # released, see CHANGELOG.md.
-VERSION = '0.1.0+git'
+VERSION = '0.2.0'
 
 
 def version_string():
