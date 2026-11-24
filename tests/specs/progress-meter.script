@@ -16,6 +16,17 @@ last_line() {
         sed -E 's|, [0-9.]+ [A-Za-z]+/s, [0-9:]+\)$|)|'
 }
 
+# print "empty" if stdin has no data (od -c of empty input prints
+# different things on different systems, wc -c pads on the BSDs)
+is_empty() {
+    n=$(wc -c | tr -d ' ')
+    if [ "$n" = 0 ]; then
+        echo empty
+    else
+        echo "not empty: $n bytes"
+    fi
+}
+
 "$SRCDIR/vrfdir" init
 
 echo three small files
@@ -37,13 +48,13 @@ head -c 1572864 /dev/zero > m1.5
 echo only empty files, there is no meter
 : > e1
 : > e2
-"$SRCDIR/vrfdir" add e1 e2 | od -c
+"$SRCDIR/vrfdir" add e1 e2 | is_empty
 "$SRCDIR/vrfdir" check | last_line
 
 echo --quiet
 echo dddd > d
-"$SRCDIR/vrfdir" add --quiet d | od -c
-"$SRCDIR/vrfdir" check --quiet | od -c
+"$SRCDIR/vrfdir" add --quiet d | is_empty
+"$SRCDIR/vrfdir" check --quiet | is_empty
 
 # cleanup
 rm -fr .vrfdir a b c d e1 e2 b1023 k1024 m1.5
