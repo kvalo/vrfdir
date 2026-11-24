@@ -140,6 +140,15 @@ commands, signals, fault injection and unreadable files.
 
 ## Constraints
 
+- vrfdir never changes the data of the user: it writes only in
+  `.vrfdir` (and `os.devnull`), no command may create, change,
+  rename, remove or touch any other file or directory, also when it
+  fails. `tests/specs/data-untouched.script` checks the data (names,
+  content and modification times) after every command, and
+  `tests/unit/test_data_untouched.py` lists every call of `vrfdir`
+  which can write and fails on an unknown one. A new write needs an
+  entry in `ALLOWED_WRITES` there, with a path in `.vrfdir`, and a
+  new command or a new failure path needs a case in the script.
 - `.vrfdir/manifest.json` (see `MANIFEST_VERSION`) must stay readable.
   A format change needs a version bump and migration of existing
   files. Version 1 has the MD5 checksum in the `md5sum` key, version
