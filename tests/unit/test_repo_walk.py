@@ -1,6 +1,7 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 
+import argparse
 import logging
 import os
 import sys
@@ -441,3 +442,82 @@ def test_open_binary_file(vrfdir, workdir):
         vrfdir.VrfdirRepo.open()
 
     assert str(e.value).endswith('is damaged: it is not a text file')
+
+
+@pytest.mark.parametrize('paths,selected', [
+    (['.'], ['a', 'dir/b', 'dir/sub/c', 'gone']),
+    (['dir'], ['dir/b', 'dir/sub/c']),
+    (['dir/'], ['dir/b', 'dir/sub/c']),
+    (['dir/b'], ['dir/b']),
+    # a deleted file can be named
+    (['gone'], ['gone']),
+    (['a', 'dir/sub'], ['a', 'dir/sub/c']),
+])
+def test_refresh_selection(vrfdir, workdir, paths, selected):
+    make_file('a')
+    make_file('dir/b')
+    make_file('dir/sub/c')
+    repo = repo_with(vrfdir, **{'a': 1, 'dir/b': 1, 'dir/sub/c': 1,
+                                'gone': 1})
+
+    assert sorted(repo.refresh_selection(paths)) == selected
+
+
+@pytest.mark.parametrize('path,reason', [
+    # only whole names, not the start of one
+    ('di', 'it has no added files'),
+    ('new', 'it has no added files'),
+    ('', 'empty file name'),
+    ('../x', 'it is outside of the current directory'),
+    ('.vrfdir/manifest.json', 'it is inside .vrfdir'),
+])
+def test_refresh_selection_refuses(vrfdir, workdir, path, reason):
+    make_file('dir/b')
+    make_file('new')
+    repo = repo_with(vrfdir, **{'dir/b': 1})
+
+    with pytest.raises(vrfdir.VrfdirError) as e:
+        repo.refresh_selection(['dir', path])
+
+    assert ': %s' % reason in str(e.value)
+
+
+def test_rehash_updates_the_entries(vrfdir, workdir, caplog):
+    make_file('a')
+    make_file('b', 'bb')
+    repo = repo_with(vrfdir, a=2, b=1, gone=1)
+    updated = []
+
+    failed = repo.rehash(['a', 'gone'], vrfdir.ProgressMeter('', True),
+                         updated)
+
+    assert updated == ['a']
+    assert failed == 1
+    # an MD5 checksum becomes SHA-256
+    assert repo.files['a'] == {'checksum': SHA256_A, 'size': 1}
+    # the others keep their entries
+    assert repo.files['b'] == {'checksum': MD5_A, 'size': 1}
+    assert repo.files['gone'] == {'checksum': MD5_A, 'size': 1}
+    # a replaced entry is not counted twice
+    assert repo.get_stats()['Files'] == 3
+    assert repo.get_stats()['Size'] == 3
+    # the reason depends on the system
+    assert len(caplog.records) == 1
+    assert caplog.records[0].getMessage().startswith('cannot refresh gone: ')
+
+
+def test_refresh_keeps_the_foreign_entries(vrfdir, workdir, monkeypatch):
+    # Only Windows has foreign names, here the entry is put in by hand.
+    # walk_repository() gives it in the deleted list.
+    repo = repo_with(vrfdir, a=1, gone=1)
+    repo.foreign['x:y'] = {'checksum': MD5_A, 'size': 1}
+    make_file('a')
+
+    monkeypatch.setattr(vrfdir, 'open_repo', lambda locked=False: repo)
+    vrfdir.refresh_repo(argparse.Namespace(files=['.'], quiet=True,
+                                           dry_run=False))
+
+    assert sorted(repo.files) == ['a']
+    assert repo.foreign == {'x:y': {'checksum': MD5_A, 'size': 1}}
+    with open('.vrfdir/manifest.json') as f:
+        assert '"x:y"' in f.read()

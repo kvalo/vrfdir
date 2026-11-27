@@ -1089,6 +1089,74 @@ class VrfdirRepo:
 
         return (upgraded, modified, failed)
 
+    # The names of the added files which the paths of refresh select:
+    # the file of the path or the files below it, '.' selects all of
+    # them. The path does not have to exist, a deleted file or
+    # directory can be named. Raises VrfdirError when a path selects
+    # nothing.
+    def refresh_selection(self, paths):
+        selected = set()
+
+        # for disk_name()
+        listings = {}
+
+        for path in paths:
+            name = command_name(path, 'refresh', listings)
+
+            if name == '.':
+                found = set(self.files)
+            else:
+                found = {n for n in self.files
+                         if n == name or n.startswith(name + '/')}
+
+            if not found:
+                raise refuse_path('refresh', name, 'it has no added files. '
+                                  'Run \'vrfdir add\' to add new files')
+
+            selected |= found
+
+        return selected
+
+    # Calculate the checksum and the size of the files in names again,
+    # as add does. A file which cannot be read keeps its old entry.
+    # The names of the files which were updated are appended to
+    # updated, also when this is interrupted. Returns the number of
+    # the files which could not be read.
+    def rehash(self, names, progress, updated):
+        failed = 0
+
+        size_total = sum(self.files[name]['size'] for name in names)
+
+        files_done = 0
+        bytes_done = 0
+        bytes_unread = 0
+        try:
+            for name in names:
+                progress.update(files_done, len(names), bytes_done,
+                                size_total, unread=bytes_unread)
+                old_size = self.files[name]['size']
+
+                try:
+                    self.add_file(name)
+                    updated.append(name)
+                except OSError as e:
+                    progress.interrupt()
+                    logger.error('cannot refresh %s: %s' %
+                                 (name_for_message(name), error_reason(e)))
+                    failed = failed + 1
+                    bytes_unread = bytes_unread + old_size
+
+                files_done = files_done + 1
+                bytes_done = bytes_done + old_size
+
+            progress.update(files_done, len(names), bytes_done, size_total,
+                            done=True, unread=bytes_unread)
+        finally:
+            # add_file() counts a replaced entry as a new file
+            self.update_stats()
+
+        return failed
+
     def update_stats(self):
         stats = {}
 
@@ -1597,6 +1665,106 @@ def add_files(args):
         sys.exit(EXIT_ERROR)
 
 
+def cmd_refresh(args):
+    logger.debug('cmd refresh %s' % args)
+
+    # changes nothing, it reads the repository like status
+    if args.dry_run:
+        refresh_repo(args)
+        return
+
+    # before manifest.json is read, see cmd_add()
+    with lock_repo():
+        refresh_repo(args)
+
+
+def refresh_repo(args):
+    repo = open_repo(locked=not args.dry_run)
+
+    try:
+        selected = repo.refresh_selection(args.files)
+    except VrfdirError as e:
+        logger.error('%s' % e)
+        sys.exit(EXIT_ERROR)
+
+    # The names and the sizes as status compares them, the files with
+    # the same size are not read. The entries below what cannot be
+    # read are in none of the lists and stay as they are.
+    (ok, stats_different, conflicted, deleted, unknown,
+     unreadable) = repo.verify_list()
+
+    for (name, message) in unreadable:
+        logger.error(message)
+
+    # deleted has also the foreign entries, which are not in
+    # repo.files and so never selected
+    changes = {}
+    for (letter, names) in (('S', stats_different), ('C', conflicted),
+                            ('D', deleted)):
+        for name in names:
+            if name in selected:
+                changes[name] = letter
+
+    # the lines of the changes and the summary of them
+    def report(names, form):
+        for name in sorted(names, key=os.fsencode):
+            print_named('%s ' % changes[name], name)
+
+        updated = sum(1 for name in names if changes[name] == 'S')
+        return form % (len(names) - updated, updated)
+
+    if args.dry_run:
+        print(report(changes, '%d file(s) would be removed, %d file(s) '
+                     'would be updated'))
+
+        if unreadable:
+            sys.exit(EXIT_ERROR)
+
+        if changes:
+            sys.exit(EXIT_DIFFERENCES)
+
+        return
+
+    done = [name for name in changes if changes[name] != 'S']
+    for name in done:
+        del repo.files[name]
+
+    resized = sorted((name for name in changes if changes[name] == 'S'),
+                     key=os.fsencode)
+
+    progress = ProgressMeter('Refreshing', args.quiet)
+    failed = 0
+    interrupted = False
+
+    try:
+        failed = repo.rehash(resized, progress, done)
+    except KeyboardInterrupt:
+        progress.interrupt()
+        interrupted = True
+
+    logger.debug('%r', repo)
+
+    if done:
+        write_repo(repo, 'the refreshed files were not saved')
+
+    # only now, nothing was changed if the save failed
+    summary = report(done, '%d file(s) removed, %d file(s) updated')
+    if failed > 0:
+        summary += ', %d file(s) could not be refreshed' % failed
+    print(summary)
+
+    if interrupted:
+        if done:
+            logger.error('interrupted, the changes made so far were saved')
+        else:
+            logger.error('interrupted')
+
+        sys.exit(EXIT_INTERRUPTED)
+
+    if failed > 0 or unreadable:
+        sys.exit(EXIT_ERROR)
+
+
 def cmd_list(args):
     logger.debug('cmd list %s' % args)
 
@@ -1865,17 +2033,18 @@ backup then.
 
 Every command which saves the repository keeps the previous version
 as .vrfdir/manifest.json.bak, which is one save old. Renaming it to
-manifest.json restores the repository, without the files added or
-upgraded in the last save. A new manifest.json is read back and its
-checksum verified before it replaces the old one, a file which does
-not read back as it was written is an error and nothing is saved.
+manifest.json restores the repository, without the files added,
+refreshed or upgraded in the last save. A new manifest.json is read
+back and its checksum verified before it replaces the old one, a file
+which does not read back as it was written is an error and nothing is
+saved.
 
-Only one command at a time can change the repository: init, add and
-upgrade lock .vrfdir/lock, and while one of them runs another one
-fails with an error (exit code 3). The other commands only read the
-repository and can be run at any time. The lock is released when the
-command ends, also when it crashes or is killed, so it never has to be
-removed by hand.
+Only one command at a time can change the repository: init, add,
+refresh and upgrade lock .vrfdir/lock, and while one of them runs
+another one fails with an error (exit code 3). The other commands
+only read the repository and can be run at any time. The lock is
+released when the command ends, also when it crashes or is killed,
+so it never has to be removed by hand.
 
 A repository from an older vrfdir has the MD5 checksum of the files
 it added. They are still checked as before, run 'vrfdir upgrade' to
@@ -1883,10 +2052,11 @@ replace them with SHA-256 checksums.
 
 Typical use:
 
-  vrfdir init      create the repository, once
-  vrfdir add .     add all the files, also the new ones later
-  vrfdir status    quick check of the names and the sizes
-  vrfdir check     full check which reads every file
+  vrfdir init        create the repository, once
+  vrfdir add .       add all the files, also the new ones later
+  vrfdir status      quick check of the names and the sizes
+  vrfdir check       full check which reads every file
+  vrfdir refresh .   accept the deleted files and the new sizes
 
 File names are printed as they are, one per line, at the end of the
 line. A name with a newline or a carriage return would look like
@@ -1900,7 +2070,7 @@ messages show the escaped name, without the backslash in front.
 exit codes, the same in every command:
   0    success, nothing to report
   1    differences: the directory differs from the repository
-       (status, check, upgrade)
+       (status, check, upgrade, refresh --dry-run)
   2    corruption: the checksum of a file does not match (check,
        upgrade)
   3    error: vrfdir could not do what was asked
@@ -1932,7 +2102,8 @@ repository. With a directory all the files below it are added,
 
 The files which are already added are skipped and not read again, so
 the same command also adds the files which have appeared since the
-last time. An added file which has changed is not updated.
+last time. An added file which has changed is not updated, see
+'vrfdir refresh'.
 
 Only regular files are added. A symbolic link given as FILE is
 ignored. Inside a directory a symbolic link to a file is followed, a
@@ -1950,6 +2121,49 @@ exit codes:
        be written, or another vrfdir is changing the repository
   64   wrong command line
   130  interrupted, the checksums calculated so far were saved
+'''
+
+HELP_REFRESH = '''\
+Update the repository for the added files which were deleted or
+changed on purpose, the ones 'vrfdir status' shows:
+
+  D  the file is deleted, it is removed from the repository
+  C  the name is not a regular file anymore, it is removed from the
+     repository
+  S  the size of the file has changed, its checksum and its size are
+     calculated again
+
+With a directory all the added files below it are refreshed,
+'vrfdir refresh .' refreshes everything. A deleted file or directory
+can be named as well. A path which has no added files is an error
+and nothing is changed. The files which are not added are not added,
+use 'vrfdir add' for them.
+
+refresh never reads a file which has the same size as before. vrfdir
+cannot tell a change made on purpose from corruption when the size
+is the same, so a file which 'vrfdir check' reports as modified (M)
+keeps its checksum.
+
+Every change is printed on its own line with the letter above, after
+the changes are saved (a name with a newline is escaped, see 'vrfdir
+--help'). The last line tells how many files were removed and how
+many updated, also when there was nothing to change, and how many
+could not be refreshed when some could not. With --dry-run the same
+lines are printed but nothing is read or changed, run it first to
+see what refresh would do.
+
+If a file or a directory cannot be read, it is an error, the added
+files there keep their entries and the rest is still refreshed. If
+refresh is interrupted, the changes made so far are saved.
+
+exit codes:
+  0    the repository was refreshed, or there was nothing to change
+  1    differences: with --dry-run, something would be changed
+  3    error: a file or a directory could not be read, a path has no
+       added files, the repository is missing, cannot be read or
+       cannot be written, or another vrfdir is changing the repository
+  64   wrong command line
+  130  interrupted, the changes made so far were saved
 '''
 
 HELP_STATUS = '''\
@@ -2219,6 +2433,19 @@ def build_parser():
                             help='file to add, or a directory to add all '
                             'files below it')
     parser_add.set_defaults(func=cmd_add)
+
+    parser_refresh = subparsers.add_parser(
+        'refresh', formatter_class=raw, description=HELP_REFRESH,
+        help='update the deleted and the resized files in the repository')
+    parser_refresh.add_argument('-q', '--quiet', action='store_true',
+                                help='do not show the progress meter')
+    parser_refresh.add_argument('-n', '--dry-run', action='store_true',
+                                help='only print what would be changed, '
+                                'change nothing')
+    parser_refresh.add_argument('files', metavar='FILE', nargs='+',
+                                help='added file to refresh, or a directory '
+                                'to refresh all added files below it')
+    parser_refresh.set_defaults(func=cmd_refresh)
 
     parser_status = subparsers.add_parser(
         'status', formatter_class=raw, description=HELP_STATUS,

@@ -1,0 +1,19 @@
+the added files in a directory which cannot be read keep their entries
+D a
+1 file(s) would be removed, 0 file(s) would be updated
+exit value: 3
+D a
+1 file(s) removed, 0 file(s) updated
+exit value: 3
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            locked/c
+sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  5            locked/d
+the directory can be read again, its deleted file is refreshed
+a symbolic link to a directory is not a file, a link to a file is
+C b
+S links/e
+D locked/d
+2 file(s) removed, 1 file(s) updated
+exit value: 0
+sha256:e3fdc2292c6af4b0e0b8f0632bf0717b5b463ecc6f129fded14cc8ef6cd08089  7            links/e
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            locked/c

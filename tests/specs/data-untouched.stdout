@@ -27,6 +27,12 @@ vrfdir check: modification times are the same
 vrfdir upgrade: exit value 0
 vrfdir upgrade: names and content are the same
 vrfdir upgrade: modification times are the same
+vrfdir refresh: exit value 0
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
+vrfdir refresh: exit value 0
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
 
 a file with the same size and other content
 vrfdir status: exit value 0
@@ -38,6 +44,12 @@ vrfdir check: modification times are the same
 vrfdir upgrade: exit value 0
 vrfdir upgrade: names and content are the same
 vrfdir upgrade: modification times are the same
+vrfdir refresh: exit value 0
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
+vrfdir refresh: exit value 0
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
 
 a deleted and a new file
 vrfdir status: exit value 1
@@ -49,6 +61,12 @@ vrfdir check: modification times are the same
 vrfdir upgrade: exit value 0
 vrfdir upgrade: names and content are the same
 vrfdir upgrade: modification times are the same
+vrfdir refresh: exit value 1
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
+vrfdir refresh: exit value 0
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
 vrfdir add: exit value 0
 vrfdir add: names and content are the same
 vrfdir add: modification times are the same
@@ -56,7 +74,7 @@ vrfdir add: modification times are the same
 a file which cannot be read
 vrfdir add --quiet e: exit value 3
 vrfdir status: exit value 1
-vrfdir check --quiet: exit value 1
+vrfdir check --quiet: exit value 2
 the file which cannot be read: names and content are the same
 the file which cannot be read: modification times are the same
 
@@ -81,6 +99,9 @@ vrfdir add: modification times are the same
 vrfdir upgrade: exit value 3
 vrfdir upgrade: names and content are the same
 vrfdir upgrade: modification times are the same
+vrfdir refresh: exit value 3
+vrfdir refresh: names and content are the same
+vrfdir refresh: modification times are the same
 
 a stale temporary file
 vrfdir add: exit value 0
@@ -94,6 +115,12 @@ add with enospc-fsync: modification times are the same
 add with corrupt-fsync: exit value 3
 add with corrupt-fsync: names and content are the same
 add with corrupt-fsync: modification times are the same
+refresh with enospc-fsync: exit value 3
+refresh with enospc-fsync: names and content are the same
+refresh with enospc-fsync: modification times are the same
+refresh with corrupt-fsync: exit value 3
+refresh with corrupt-fsync: names and content are the same
+refresh with corrupt-fsync: modification times are the same
 
 a failure while a file is hashed
 check with eio-hash: exit value 3
@@ -107,6 +134,9 @@ locked init: modification times are the same
 locked add --quiet .: exit value 3
 locked add --quiet .: names and content are the same
 locked add --quiet .: modification times are the same
+locked refresh --quiet .: exit value 3
+locked refresh --quiet .: names and content are the same
+locked refresh --quiet .: modification times are the same
 locked upgrade --quiet: exit value 3
 locked upgrade --quiet: names and content are the same
 locked upgrade --quiet: modification times are the same

@@ -84,6 +84,8 @@ run scan
 run status
 run check --quiet
 run upgrade --quiet
+run refresh --quiet --dry-run .
+run refresh --quiet .
 
 echo
 echo a file with the same size and other content
@@ -92,6 +94,8 @@ prepare
 run status
 run check --quiet
 run upgrade --quiet
+run refresh --quiet --dry-run .
+run refresh --quiet .
 
 echo
 echo a deleted and a new file
@@ -101,6 +105,8 @@ prepare
 run status
 run check --quiet
 run upgrade --quiet
+run refresh --quiet --dry-run .
+run refresh --quiet .
 run add --quiet dir
 
 echo
@@ -134,6 +140,7 @@ run status
 run check --quiet
 run add --quiet a
 run upgrade --quiet
+run refresh --quiet .
 cp ../manifest.good .vrfdir/manifest.json
 
 echo
@@ -155,6 +162,16 @@ for kind in enospc-fsync corrupt-fsync; do
     rm f
     untouched "add with $kind"
 done
+cp dir/d ../d.orig
+echo bigger > dir/d
+prepare
+for kind in enospc-fsync corrupt-fsync; do
+    "$SRCDIR/tests/inject-at" $kind 1 "$SRCDIR/vrfdir" refresh --quiet . \
+        > ../out 2>&1
+    echo "refresh with $kind: exit value $?"
+    untouched "refresh with $kind"
+done
+cp ../d.orig dir/d
 
 echo
 echo a failure while a file is hashed
@@ -167,7 +184,7 @@ untouched "check with eio-hash"
 echo
 echo another vrfdir is changing the repository
 prepare
-for cmd in init "add --quiet ." "upgrade --quiet"; do
+for cmd in init "add --quiet ." "refresh --quiet ." "upgrade --quiet"; do
     # shellcheck disable=SC2086
     "$SRCDIR/tests/locked" "$SRCDIR/vrfdir" $cmd > ../out 2>&1
     echo "locked $cmd: exit value $?"
@@ -184,4 +201,4 @@ untouched "add with enolck-lock"
 
 # cleanup
 cd "$DATADIR" || exit 1
-rm -fr data ref before after out manifest.good
+rm -fr data ref before after out manifest.good d.orig

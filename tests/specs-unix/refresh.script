@@ -1,0 +1,50 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test refresh with what needs a POSIX system: a directory which
+# cannot be read and symbolic links
+#
+# Note: this does not work as root, which can read the directory
+# anyway.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# run vrfdir and print its exit value
+run() {
+    "$SRCDIR/vrfdir" "$@"
+    echo "exit value: $?"
+}
+
+"$SRCDIR/vrfdir" init
+mkdir locked other
+echo aaaa > a
+echo bbbb > b
+echo cccc > locked/c
+echo dddd > locked/d
+"$SRCDIR/vrfdir" add --quiet .
+
+echo the added files in a directory which cannot be read keep their entries
+rm a locked/d
+chmod 000 locked
+run refresh --quiet --dry-run .
+run refresh --quiet .
+chmod 755 locked
+"$SRCDIR/vrfdir" list
+
+echo the directory can be read again, its deleted file is refreshed
+echo a symbolic link to a directory is not a file, a link to a file is
+mkdir links
+ln -s ../locked/c links/e
+"$SRCDIR/vrfdir" add --quiet links
+rm b links/e
+ln -s other b
+echo ffffff > other/f
+ln -s ../other/f links/e
+run refresh --quiet .
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir b links locked other

@@ -1,6 +1,7 @@
 Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished
 Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished
 Error: cannot lock the repository .vrfdir/lock: Permission denied
+Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished
 Warning: .vrfdir/manifest.json.tmp exists: an earlier vrfdir was interrupted while saving and the files it added may be missing. Run 'vrfdir add' again
 Error: internal error, this is a bug in vrfdir
 Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished

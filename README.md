@@ -57,8 +57,9 @@ moved between Linux and Windows.
 Windows cannot have all the file names Linux can: a name with `\`,
 `:` or bytes which are not valid UTF-8, a name which ends with a dot
 or a space, or a device name like `NUL`. On Windows `status` shows
-those files as deleted (`D`). Their checksums are kept and work again
-on the system where the files were added.
+those files as deleted (`D`), but `refresh` does not remove them.
+Their checksums are kept and work again on the system where the files
+were added.
 
 ## Usage
 
@@ -96,6 +97,27 @@ the files can be verified without vrfdir:
 
     $ vrfdir export | sha256sum -c
 
+### Deleted and changed files
+
+When you delete a file or change it on purpose, `status` shows it as
+deleted (`D`) or with a new size (`S`). `refresh` writes those
+changes to the repository, `--dry-run` shows first what it would do:
+
+    $ vrfdir refresh --dry-run .
+    D photos/old.jpg
+    S photos/edited.jpg
+    1 file(s) would be removed, 1 file(s) would be updated
+    $ vrfdir refresh .
+    D photos/old.jpg
+    S photos/edited.jpg
+    1 file(s) removed, 1 file(s) updated
+
+A path limits it to the files below it, for example
+`vrfdir refresh photos`. `refresh` does not add new files, use `add`
+for them. It never reads a file whose size is the same as before:
+vrfdir cannot tell such a change from corruption, so a file which
+`check` reports as modified (`M`) keeps its checksum.
+
 ### Repositories of an older vrfdir
 
 Older versions stored the MD5 checksum. Such a repository still
@@ -119,8 +141,9 @@ refuses to print anything while a file still has an MD5 checksum.
   junction of Windows is a link to a directory.
 - File names can be any bytes, also ones which are not valid in the
   encoding of your locale.
-- Changing a file on purpose looks the same as corruption, and there
-  is no command yet to update or remove an added file.
+- Changing a file on purpose without changing its size looks the same
+  as corruption, and there is no command yet to accept such a change
+  or to remove an added file which still exists.
 - SHA-256 is used to catch accidental corruption. The checksums are
   stored next to the files, so they do not protect against somebody
   modifying both on purpose.

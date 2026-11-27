@@ -1,0 +1,8 @@
+Error: cannot refresh '': empty file name
+Error: cannot refresh ../x: it is outside of the current directory
+Error: cannot refresh .vrfdir/manifest.json: it is inside .vrfdir, the directory of vrfdir itself
+Error: cannot refresh n: it has no added files. Run 'vrfdir add' to add new files
+Error: cannot refresh nothere: it has no added files. Run 'vrfdir add' to add new files
+Error: cannot refresh h: Permission denied
+Error: cannot refresh h: Input/output error
+Error: no repository in this directory. Run 'vrfdir init' to create one, or change to the directory which has .vrfdir

@@ -10,8 +10,8 @@ import pytest
 
 from conftest import SRCDIR
 
-COMMANDS = ['init', 'add', 'status', 'check', 'list', 'export', 'info',
-            'scan']
+COMMANDS = ['init', 'add', 'refresh', 'status', 'check', 'list', 'export',
+            'info', 'scan']
 
 
 def exit_defines(vrfdir):

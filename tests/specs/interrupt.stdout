@@ -15,3 +15,19 @@ check interrupted, the progress line is ended
 Checking: 0% (0/3 files, 0 B of 15 B) 
 the hook must be reached
 a corrupted file is not reported after the interrupt
+refresh interrupted on the second file, the removal and the first
+file are saved
+S a
+D c
+1 file(s) removed, 1 file(s) updated
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+refresh can continue from there
+S b
+0 file(s) removed, 1 file(s) updated
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            a
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            b
+refresh interrupted on the first file, nothing to save
+0 file(s) removed, 0 file(s) updated
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            a
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            b

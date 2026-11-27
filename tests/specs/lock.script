@@ -55,6 +55,20 @@ echo add works after the lock is released
 "$SRCDIR/vrfdir" add --quiet b
 "$SRCDIR/vrfdir" list
 
+echo refresh: the repository is locked, nothing is refreshed
+rm b
+locked 3 refresh --quiet .
+"$SRCDIR/vrfdir" list
+
+echo refresh --dry-run only reads the repository, it works while locked
+locked 1 refresh --dry-run .
+
+echo refresh works after the lock is released
+"$SRCDIR/vrfdir" refresh --quiet .
+"$SRCDIR/vrfdir" list
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet b
+
 echo a temporary file of a save which is running now is no stale file
 echo garbage > .vrfdir/manifest.json.tmp
 locked 0 list

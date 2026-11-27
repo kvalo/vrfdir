@@ -4,8 +4,8 @@
 #
 # test the entries of manifest.json whose name cannot be a file name on
 # Windows, from a repository made on another system. They are kept as
-# they are: status shows them as deleted, check and add do not touch
-# them, and the next save writes them back unchanged, so that the
+# they are: status shows them as deleted, check, add and refresh do not
+# touch them, and the next save writes them back unchanged, so that the
 # repository still works on the system where the files were added.
 
 # don't 'set -e' on purpose so that we can verify the exit values
@@ -46,6 +46,16 @@ echo vrfdir list
 
 echo the names in the new manifest.json
 grep -o '"[^"]*": {"checksum"' .vrfdir/manifest.json | LC_ALL=C sort
+
+echo refresh does not remove them
+rm a
+"$SRCDIR/vrfdir" refresh --quiet .
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+echo a directory with only them has no added files for refresh
+"$SRCDIR/vrfdir" refresh --quiet dir
+echo "exit value: $?"
 
 # cleanup
 rm -fr .vrfdir a b

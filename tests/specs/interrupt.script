@@ -56,5 +56,22 @@ echo a corrupted file is not reported after the interrupt
 echo xxxx > c
 interrupted 2 check --quiet
 
+echo refresh interrupted on the second file, the removal and the first
+echo file are saved
+echo bigger > a
+echo bigger > b
+rm c
+interrupted 2 refresh --quiet .
+"$SRCDIR/vrfdir" list
+
+echo refresh can continue from there
+"$SRCDIR/vrfdir" refresh --quiet .
+"$SRCDIR/vrfdir" list
+
+echo refresh interrupted on the first file, nothing to save
+echo much bigger > b
+interrupted 1 refresh --quiet .
+"$SRCDIR/vrfdir" list
+
 # cleanup
 rm -fr .vrfdir a b c d

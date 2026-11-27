@@ -30,3 +30,16 @@ the names in the new manifest.json
 "con.txt": {"checksum"
 "dir/nul": {"checksum"
 "x.": {"checksum"
+refresh does not remove them
+D a
+1 file(s) removed, 0 file(s) updated
+exit value: 0
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a:b
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            back\slash
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            bad-\xff-name
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            con.txt
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            dir/nul
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            x.
+a directory with only them has no added files for refresh
+exit value: 3

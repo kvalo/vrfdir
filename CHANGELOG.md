@@ -21,6 +21,15 @@ project adheres to [Semantic Versioning][semver].
   only read the repository do not wait for the lock. A filesystem
   which cannot lock gives a warning and the command works without
   the lock.
+- `vrfdir refresh FILE...` updates the repository for the added files
+  which were deleted or changed on purpose: a deleted file, or a name
+  which is not a regular file anymore, is removed, and a file whose
+  size has changed gets a new checksum. A file with the same size is
+  never read, so a change which `check` reports as corruption is
+  never accepted, and new files are not added. Every change is
+  printed, and the last line tells how many files were removed and
+  updated. `--dry-run` (`-n`) prints what would be changed.
+  `refresh` locks the repository like `add`.
 
 ### Changed
 

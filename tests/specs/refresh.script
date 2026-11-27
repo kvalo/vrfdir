@@ -1,0 +1,116 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test refresh: the deleted files and the files which are not regular
+# files anymore are removed, the files with a new size are hashed
+# again, the files with the same size and the files which are not
+# added are not touched
+#
+# Note: this does not work as root, which can read the file anyway.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# run vrfdir and print its exit value
+run() {
+    "$SRCDIR/vrfdir" "$@"
+    echo "exit value: $?"
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+echo eeee > e
+mkdir -p dir/sub
+echo ffff > dir/f
+echo gggg > dir/sub/g
+"$SRCDIR/vrfdir" add --quiet .
+
+echo nothing to refresh
+run refresh --quiet .
+
+# a deleted, b and dir/f have a new size, c is a directory now, e has
+# the same size and other content, n is not added
+rm a
+echo bigger > b
+rm c
+mkdir c
+echo EEEE > e
+echo bigger > dir/f
+echo nnnn > n
+
+echo dry-run prints the changes and changes nothing
+cp .vrfdir/manifest.json manifest.orig
+run refresh --quiet --dry-run .
+run refresh -n dir
+cmp .vrfdir/manifest.json manifest.orig && echo manifest.json is the same
+
+echo only the files below the path are refreshed
+run refresh --quiet dir
+run status
+
+echo refresh everything
+run refresh --quiet .
+run status
+
+echo the checksum of a refreshed file is the one sha256sum prints
+"$SRCDIR/vrfdir" export | grep ' b$'
+# sha256sum of Windows prints the marker of the binary mode
+sha256sum b | sed 's/ \*/  /'
+
+echo a file with the same size and other content is still modified
+run check --quiet
+
+echo a deleted file and a deleted directory can be named
+rm dir/sub/g
+rmdir dir/sub
+rm e
+run refresh --quiet dir/sub e
+"$SRCDIR/vrfdir" list
+
+echo a path which cannot be refreshed changes nothing
+rm b
+cp .vrfdir/manifest.json manifest.orig
+run refresh --quiet b ''
+run refresh --quiet b ../x
+run refresh --quiet b .vrfdir/manifest.json
+run refresh --quiet b n
+run refresh --quiet b nothere
+cmp .vrfdir/manifest.json manifest.orig && echo manifest.json is the same
+run refresh --quiet b
+
+echo a file which cannot be read keeps its entry, the rest is refreshed
+echo hhhh > h
+echo iiii > i
+"$SRCDIR/vrfdir" add --quiet h i
+echo bigger > h
+rm i
+"$SRCDIR/tests/unreadable" h
+run refresh --quiet .
+"$SRCDIR/tests/unreadable" --undo h
+"$SRCDIR/vrfdir" list
+
+echo a failure while a file is hashed
+"$SRCDIR/tests/inject-at" eio-hash 1 "$SRCDIR/vrfdir" refresh --quiet h
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+echo an MD5 checksum of a refreshed file becomes SHA-256
+rm -r .vrfdir
+mkdir .vrfdir
+echo '[{"version": 2, "files": {"a": {"checksum": "md5:e5828c564f71fea3a12dde8bd5d27063", "size": 5}}}]' \
+    > .vrfdir/manifest.json
+echo bigger > a
+run refresh --quiet a
+"$SRCDIR/vrfdir" list
+"$SRCDIR/vrfdir" info --machine-readable | grep '^version='
+
+echo a repository without the files
+rm -r .vrfdir
+run refresh --quiet .
+
+# cleanup
+rm -fr .vrfdir a b c dir e h n manifest.orig

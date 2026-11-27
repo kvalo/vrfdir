@@ -1,0 +1,76 @@
+nothing to refresh
+0 file(s) removed, 0 file(s) updated
+exit value: 0
+dry-run prints the changes and changes nothing
+D a
+S b
+C c
+S dir/f
+2 file(s) would be removed, 2 file(s) would be updated
+exit value: 1
+S dir/f
+0 file(s) would be removed, 1 file(s) would be updated
+exit value: 1
+manifest.json is the same
+only the files below the path are refreshed
+S dir/f
+0 file(s) removed, 1 file(s) updated
+exit value: 0
+D a
+S b
+C c
+? manifest.orig
+? n
+exit value: 1
+refresh everything
+D a
+S b
+C c
+2 file(s) removed, 1 file(s) updated
+exit value: 0
+? manifest.orig
+? n
+exit value: 1
+the checksum of a refreshed file is the one sha256sum prints
+613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  b
+613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  b
+a file with the same size and other content is still modified
+M e
+1 file(s) modified
+exit value: 2
+a deleted file and a deleted directory can be named
+D dir/sub/g
+D e
+2 file(s) removed, 0 file(s) updated
+exit value: 0
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            b
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            dir/f
+a path which cannot be refreshed changes nothing
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+exit value: 3
+manifest.json is the same
+D b
+1 file(s) removed, 0 file(s) updated
+exit value: 0
+a file which cannot be read keeps its entry, the rest is refreshed
+D i
+1 file(s) removed, 0 file(s) updated, 1 file(s) could not be refreshed
+exit value: 3
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            dir/f
+sha256:5a1ee8d6aa25343ae0435ead1f7d8b48359e6e1a810685def96dae5b4b6c1c57  5            h
+a failure while a file is hashed
+0 file(s) removed, 0 file(s) updated, 1 file(s) could not be refreshed
+exit value: 3
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            dir/f
+sha256:5a1ee8d6aa25343ae0435ead1f7d8b48359e6e1a810685def96dae5b4b6c1c57  5            h
+an MD5 checksum of a refreshed file becomes SHA-256
+S a
+0 file(s) removed, 1 file(s) updated
+exit value: 0
+sha256:613438e39b2ff00e3ba187e54229c9d76b86d0b1b17a6e2e9e9fe01c3d40fd88  7            a
+version=3
+a repository without the files
+exit value: 3
