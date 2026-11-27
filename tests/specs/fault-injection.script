@@ -175,5 +175,12 @@ echo new > new
 inject eio-fsencode 1 3 status
 rm new
 
+echo add: the filesystem cannot lock, add warns and saves without the lock
+echo dddd > d
+inject enolck-lock 1 0 add --quiet d
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+rm d
+
 # cleanup
 rm -fr .vrfdir a b c

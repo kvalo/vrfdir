@@ -1,0 +1,90 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the lock of the repository: while another process holds it
+# (tests/locked), the commands which change the repository fail and
+# change nothing, and the commands which only read it work. That a
+# process which is killed does not leave the lock behind is in
+# tests/unit/test_lock.py.
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# locked EXPECTED-EXIT vrfdir-arguments
+locked() {
+    expected=$1
+    shift
+    "$SRCDIR/tests/locked" "$SRCDIR/vrfdir" "$@"
+    retval=$?
+    if [ $retval != "$expected" ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+echo init: the repository is locked, nothing is created
+mkdir .vrfdir
+locked 3 init
+ls .vrfdir
+
+echo init works after the lock is released
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a
+
+echo add: the repository is locked, nothing is added
+locked 3 add --quiet b
+"$SRCDIR/vrfdir" list
+
+echo the commands which only read the repository work while it is locked
+locked 1 status
+locked 0 check --quiet
+locked 0 list
+locked 0 export
+locked 0 info --machine-readable
+
+echo add: the lock file cannot be opened, nothing is added
+"$SRCDIR/tests/unreadable" .vrfdir/lock
+"$SRCDIR/vrfdir" add --quiet b
+echo "exit value: $?"
+"$SRCDIR/tests/unreadable" --undo .vrfdir/lock
+"$SRCDIR/vrfdir" list
+
+echo add works after the lock is released
+"$SRCDIR/vrfdir" add --quiet b
+"$SRCDIR/vrfdir" list
+
+# Only the first line is compared, the rest is the stacktrace.
+echo add which crashes does not leave the lock behind
+echo cccc > c
+"$SRCDIR/tests/inject-at" bug-hash 1 "$SRCDIR/vrfdir" add --quiet c \
+    2> stderr.txt
+echo "exit value: $?"
+head -n 1 stderr.txt >&2
+rm stderr.txt
+"$SRCDIR/vrfdir" add --quiet c
+"$SRCDIR/vrfdir" list
+
+echo a repository of an older vrfdir has no lock file and reading does not
+echo create it
+rm -r .vrfdir
+mkdir .vrfdir
+echo '[{"version": 2, "files": {"a": {"checksum": "md5:e5828c564f71fea3a12dde8bd5d27063", "size": 5}}}]' \
+    > .vrfdir/manifest.json
+cp .vrfdir/manifest.json manifest.orig
+"$SRCDIR/vrfdir" list
+"$SRCDIR/vrfdir" status
+ls .vrfdir
+
+echo upgrade: the repository is locked, nothing is upgraded
+locked 3 upgrade --quiet
+cmp .vrfdir/manifest.json manifest.orig && echo manifest.json is the same
+
+echo upgrade works after the lock is released
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+# cleanup
+rm -fr .vrfdir a b c manifest.orig

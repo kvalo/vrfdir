@@ -113,6 +113,11 @@ of this repository. It is available from
   of icacls on Windows, so the test goes to `tests/specs/`. A
   directory which cannot be read needs chmod and `tests/specs-unix/`:
   on the CI runner a deny entry of a directory has no effect.
+- A repository which another vrfdir is changing is made with
+  `$SRCDIR/tests/locked SCRIPT [ARGS...]`, which holds the lock of
+  `.vrfdir/lock` while it runs the Python script (`$SRCDIR/vrfdir`
+  or `tests/inject-at`) in a process of its own. It works on every
+  system, so the test goes to `tests/specs/`.
 - `filenames-invalid.script`, `encoding.script` and `scan.script` in
   `tests/specs-linux/` must stay bash, not sh: dash cannot create the
   weird filenames they need.

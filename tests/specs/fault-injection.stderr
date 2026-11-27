@@ -20,3 +20,4 @@ Error: cannot read a: Input/output error
 Error: cannot read a: Input/output error
 Error: cannot read a: Input/output error
 Error: cannot access some-file: Input/output error
+Warning: cannot lock the repository .vrfdir/lock: No locks available. Do not run another vrfdir which changes it at the same time

@@ -1,0 +1,42 @@
+init: the repository is locked, nothing is created
+lock
+init works after the lock is released
+add: the repository is locked, nothing is added
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+the commands which only read the repository work while it is locked
+? b
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  a
+version=3
+manifest=sha256:5fdbfb9688cfed7e54f637bd22f8330bd056d6f4b78b2bae0aa8125c7cd6de7c
+files=1
+size=5
+sha256=1
+md5=0
+foreign=0
+largest.1=5 a
+add: the lock file cannot be opened, nothing is added
+exit value: 3
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+add works after the lock is released
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+add which crashes does not leave the lock behind
+exit value: 3
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:4551db5fd4d56e27be71a8a943070cfaa4342b8e960a326e2d6427b3aa0a5a48  5            b
+sha256:02f878d89f48b51fc327951d28d71ffb2b8758c1741feb46d247f1c038c67bdd  5            c
+a repository of an older vrfdir has no lock file and reading does not
+create it
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a
+? b
+? c
+? manifest.orig
+manifest.json
+upgrade: the repository is locked, nothing is upgraded
+manifest.json is the same
+upgrade works after the lock is released
+repository converted to the latest format (version 3)
+1 file(s) upgraded to SHA-256
+exit value: 0
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a

@@ -1,0 +1,5 @@
+Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished
+Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished
+Error: cannot lock the repository .vrfdir/lock: Permission denied
+Error: internal error, this is a bug in vrfdir
+Error: cannot lock the repository .vrfdir/lock: another vrfdir is changing it. Run the command again when it has finished

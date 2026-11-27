@@ -12,6 +12,16 @@ project adheres to [Semantic Versioning][semver].
 
 ## [Unreleased]
 
+### Added
+
+- `vrfdir init`, `add` and `upgrade` lock the repository with
+  `.vrfdir/lock`. While one of them runs, another one fails with an
+  error and nothing is lost: before, two `add` commands at the same
+  time could drop the files the other one added. The commands which
+  only read the repository do not wait for the lock. A filesystem
+  which cannot lock gives a warning and the command works without
+  the lock.
+
 ## [0.2.0] - 2026-11-24
 
 ### Added

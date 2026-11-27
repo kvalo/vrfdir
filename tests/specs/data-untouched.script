@@ -164,6 +164,24 @@ prepare
 echo "check with eio-hash: exit value $?"
 untouched "check with eio-hash"
 
+echo
+echo another vrfdir is changing the repository
+prepare
+for cmd in init "add --quiet ." "upgrade --quiet"; do
+    # shellcheck disable=SC2086
+    "$SRCDIR/tests/locked" "$SRCDIR/vrfdir" $cmd > ../out 2>&1
+    echo "locked $cmd: exit value $?"
+    untouched "locked $cmd"
+done
+
+echo
+echo the filesystem cannot lock
+prepare
+"$SRCDIR/tests/inject-at" enolck-lock 1 "$SRCDIR/vrfdir" add --quiet . \
+    > ../out 2>&1
+echo "add with enolck-lock: exit value $?"
+untouched "add with enolck-lock"
+
 # cleanup
 cd "$DATADIR" || exit 1
 rm -fr data ref before after out manifest.good

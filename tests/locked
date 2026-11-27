@@ -1,0 +1,52 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run a Python script while the repository in the current directory is
+# locked, as if another vrfdir was changing it. The lock is taken in
+# the same way as vrfdir takes it (RepoLock), on .vrfdir/lock, which is
+# created when it does not exist. The script runs in a process of its
+# own which does not inherit the lock, and the exit value is its exit
+# value. The lock is released when this exits.
+#
+# A script and not any command, as Windows cannot start a script by
+# its #! line. Like inject-at, which this can run.
+#
+# usage: locked SCRIPT [ARGS...]
+
+import os
+import subprocess
+import sys
+
+if sys.platform == 'win32':
+    import msvcrt
+else:
+    import fcntl
+
+EXIT_USAGE = 64
+LOCK_PATH = '.vrfdir/lock'
+
+
+def lock(fd):
+    if sys.platform == 'win32':
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    else:
+        fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+
+
+def main():
+    if len(sys.argv) < 2:
+        print('usage: locked SCRIPT [ARGS...]', file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+
+    fd = os.open(LOCK_PATH, os.O_RDWR | os.O_CREAT, 0o666)
+    lock(fd)
+
+    # what the script prints comes after what this has printed
+    sys.stdout.flush()
+    result = subprocess.run([sys.executable] + sys.argv[1:])
+    sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()

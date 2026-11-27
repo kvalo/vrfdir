@@ -20,6 +20,7 @@ add: full disk when saving the backup, nothing is saved
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 vrfdir list of the backup
@@ -27,6 +28,7 @@ add: full disk when saving, nothing is saved
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 vrfdir list of the backup
@@ -35,6 +37,7 @@ add: the backup does not read back as written, nothing is saved
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 vrfdir list of the backup
@@ -43,9 +46,11 @@ add: manifest.json does not read back as written, nothing is saved
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 init: manifest.json does not read back as written
+lock
 add: Ctrl-C when the directory is read, the repository is intact
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
@@ -53,12 +58,14 @@ add: Ctrl-C when saving the backup, manifest.json is not changed
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 add: Ctrl-C when saving, manifest.json is the old complete file
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 ls .vrfdir
+lock
 manifest.json
 manifest.json.bak
 status: Ctrl-C when the directory is read
@@ -75,3 +82,7 @@ vrfdir scan
 0 files
 vrfdir add --quiet .
 an error with a file name which no command handles
+add: the filesystem cannot lock, add warns and saves without the lock
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  5            d

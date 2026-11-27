@@ -31,6 +31,9 @@
 #   sigint-replace  SIGINT is sent when the Nth file is renamed over
 #                   another one, which is how manifest.json and its
 #                   backup are saved
+#   enolck-lock     the Nth lock of a file fails with ENOLCK, as on a
+#                   filesystem which cannot lock (fcntl.flock(), and
+#                   msvcrt.locking() on Windows)
 
 import errno
 import hashlib
@@ -38,6 +41,13 @@ import os
 import runpy
 import signal
 import sys
+
+if sys.platform == 'win32':
+    import msvcrt
+    lock_module, lock_function = msvcrt, 'locking'
+else:
+    import fcntl
+    lock_module, lock_function = fcntl, 'flock'
 
 EXIT_USAGE = 64
 EXIT_HOOK_NOT_REACHED = 70
@@ -135,6 +145,7 @@ def kinds():
     enospc = OSError(errno.ENOSPC, os.strerror(errno.ENOSPC))
     eacces = PermissionError(errno.EACCES, os.strerror(errno.EACCES))
     eio_name = OSError(errno.EIO, os.strerror(errno.EIO), 'some-file')
+    enolck = OSError(errno.ENOLCK, os.strerror(errno.ENOLCK))
 
     return {
         'eio-hash': (hashlib, 'file_digest', fail_with(eio), always),
@@ -150,6 +161,8 @@ def kinds():
         'corrupt-fsync': (os, 'fsync', corrupt_file, always),
         'sigint-scandir': (os, 'scandir', send_sigint, always),
         'sigint-replace': (os, 'replace', send_sigint, always),
+        'enolck-lock': (lock_module, lock_function, fail_with(enolck),
+                        always),
     }
 
 

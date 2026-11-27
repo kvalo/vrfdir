@@ -64,6 +64,7 @@ a repository of the old format
 vrfdir add: exit value 0
 vrfdir add: names and content are the same
 vrfdir add: modification times are the same
+lock
 manifest.json
 manifest.json.bak
 
@@ -98,3 +99,19 @@ a failure while a file is hashed
 check with eio-hash: exit value 3
 check with eio-hash: names and content are the same
 check with eio-hash: modification times are the same
+
+another vrfdir is changing the repository
+locked init: exit value 3
+locked init: names and content are the same
+locked init: modification times are the same
+locked add --quiet .: exit value 3
+locked add --quiet .: names and content are the same
+locked add --quiet .: modification times are the same
+locked upgrade --quiet: exit value 3
+locked upgrade --quiet: names and content are the same
+locked upgrade --quiet: modification times are the same
+
+the filesystem cannot lock
+add with enolck-lock: exit value 0
+add with enolck-lock: names and content are the same
+add with enolck-lock: modification times are the same

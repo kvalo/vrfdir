@@ -15,9 +15,9 @@ from conftest import SRCDIR
 
 # Nothing which can copy, move or delete files by itself or run
 # another program. Every module vrfdir imports is listed.
-ALLOWED_IMPORTS = {'argparse', 'errno', 'hashlib', 'heapq', 'itertools',
-                   'locale', 'logging', 'json', 'os', 'platform', 're',
-                   'stat', 'sys', 'time'}
+ALLOWED_IMPORTS = {'argparse', 'errno', 'fcntl', 'hashlib', 'heapq',
+                   'itertools', 'locale', 'logging', 'json', 'msvcrt', 'os',
+                   'platform', 're', 'stat', 'sys', 'time'}
 
 # functions of os which change a file, a directory or what is run
 OS_WRITERS = {
@@ -43,7 +43,10 @@ ALLOWED_WRITES = {
     ('replace_file', 'os.replace(src, dst)'),
     # the old name of manifest.json, removed after the conversion
     ('VrfdirRepo.write', 'os.unlink(VRFDIR_LEGACY_PATH)'),
-    ('cmd_init', 'os.makedirs(VRFDIR_DIRECTORY)'),
+    ('cmd_init', 'os.makedirs(VRFDIR_DIRECTORY, exist_ok=True)'),
+    # the empty file of the lock, never written to
+    ('RepoLock.acquire',
+     'os.open(VRFDIR_LOCK_PATH, os.O_RDWR | os.O_CREAT, 438)'),
     # stdout and stderr which were closed
     ('discard_stdout', 'os.open(os.devnull, os.O_WRONLY)'),
     ('main', "open(os.devnull, 'w')"),
@@ -198,3 +201,7 @@ def test_replace_file_is_only_called_by_save_file():
 def test_the_old_manifest_is_in_vrfdir(vrfdir):
     # the only file which is removed and is not a temporary file
     assert vrfdir.VRFDIR_LEGACY_PATH.startswith(vrfdir.VRFDIR_DIRECTORY + '/')
+
+
+def test_the_lock_is_in_vrfdir(vrfdir):
+    assert vrfdir.VRFDIR_LOCK_PATH.startswith(vrfdir.VRFDIR_DIRECTORY + '/')

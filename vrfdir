@@ -17,6 +17,12 @@ import stat
 import sys
 import time
 
+# the lock of the repository, see RepoLock
+if sys.platform == 'win32':
+    import msvcrt
+else:
+    import fcntl
+
 # global variables
 logger = None
 
@@ -31,6 +37,10 @@ VRFDIR_MANIFEST_TMP_PATH = '%s/%s' % (VRFDIR_DIRECTORY, VRFDIR_MANIFEST_TMP)
 # manifest.json, renaming it back restores the repository.
 VRFDIR_BACKUP_PATH = VRFDIR_MANIFEST_PATH + '.bak'
 VRFDIR_BACKUP_TMP_PATH = VRFDIR_BACKUP_PATH + '.tmp'
+
+# The file which the commands that change the repository lock, see
+# RepoLock. It is empty and never removed.
+VRFDIR_LOCK_PATH = '%s/%s' % (VRFDIR_DIRECTORY, 'lock')
 
 # The release of vrfdir, following Semantic Versioning. It has nothing to
 # do with MANIFEST_VERSION. '+git' marks a version which is not
@@ -126,6 +136,11 @@ PROGRESS_INTERVAL = 1
 # seconds to wait in between
 REPLACE_RETRIES = 10
 REPLACE_RETRY_DELAY = 0.1
+
+# how many times to retry taking the lock of the repository and the
+# seconds to wait in between, see RepoLock
+LOCK_RETRIES = 10
+LOCK_RETRY_DELAY = 0.1
 
 # how many files 'vrfdir info' lists as the largest, HELP_INFO says it
 LARGEST_FILES = 5
@@ -1247,6 +1262,149 @@ class VrfdirRepo:
         self.update_stats()
 
 
+# What the lock functions raise when another process holds the lock:
+# flock() fails with EWOULDBLOCK, msvcrt.locking() with EACCES.
+LOCK_HELD_ERROR = PermissionError if sys.platform == 'win32' else \
+    BlockingIOError
+
+
+# Lock fd without waiting, raises LOCK_HELD_ERROR when another process
+# holds the lock. Windows has no shared lock, there the probe of
+# writer_active() takes the same lock as a writer. It locks byte 0,
+# which Windows allows also past the end of the empty file.
+def try_lock(fd, shared=False):
+    if sys.platform == 'win32':
+        os.lseek(fd, 0, os.SEEK_SET)
+        msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+    else:
+        mode = fcntl.LOCK_SH if shared else fcntl.LOCK_EX
+        fcntl.flock(fd, mode | fcntl.LOCK_NB)
+
+
+# The close of fd releases the lock as well, an error here is ignored.
+# Windows can take its time to release the lock of a closed file, so
+# there it is released first.
+def unlock(fd):
+    try:
+        if sys.platform == 'win32':
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_UNLCK, 1)
+        else:
+            fcntl.flock(fd, fcntl.LOCK_UN)
+    except OSError:
+        pass
+
+
+# The lock of the commands which change the repository, so that two of
+# them never read and write manifest.json at the same time. The lock
+# is on VRFDIR_LOCK_PATH and not on manifest.json, which is replaced by
+# every write. The operating system releases it when the process ends,
+# also when it crashes or is killed, so it is never left behind. The
+# file itself stays, it is empty and only its lock matters.
+#
+# The commands which only read the repository do not take the lock.
+# The rename in save_file() is atomic, they read either the old or the
+# new manifest.json.
+#
+# On a filesystem which cannot lock at all, for example NFS without the
+# lock daemon, the command warns and goes on without the lock.
+class RepoLock:
+
+    def __init__(self):
+        # the open lock file while the lock is held
+        self.fd = None
+
+        # acquire() was called, also when it went on without the lock
+        self.acquired = False
+
+    # Returns True when fd is locked and False when the filesystem
+    # cannot lock it. A reader of writer_active() holds the lock for a
+    # moment, the retries are for that.
+    @staticmethod
+    def lock_fd(fd):
+        retries = LOCK_RETRIES
+
+        while True:
+            try:
+                try_lock(fd)
+                return True
+            except LOCK_HELD_ERROR:
+                if retries == 0:
+                    raise VrfdirError('cannot lock the repository %s: '
+                                      'another vrfdir is changing it. Run '
+                                      'the command again when it has '
+                                      'finished' % VRFDIR_LOCK_PATH)
+            except OSError as e:
+                logger.warning('cannot lock the repository %s: %s. Do not '
+                               'run another vrfdir which changes it at the '
+                               'same time' %
+                               (VRFDIR_LOCK_PATH, error_reason(e)))
+                return False
+
+            retries -= 1
+            time.sleep(LOCK_RETRY_DELAY)
+
+    # Raises VrfdirError when the lock cannot be taken.
+    def acquire(self):
+        try:
+            fd = os.open(VRFDIR_LOCK_PATH, os.O_RDWR | os.O_CREAT, 0o666)
+        except OSError as e:
+            # no repository, which open_repo() tells in the same way
+            # as for the other commands
+            if not os.path.isdir(VRFDIR_DIRECTORY):
+                self.acquired = True
+                return
+
+            raise VrfdirError('cannot lock the repository %s: %s' %
+                              (VRFDIR_LOCK_PATH, error_reason(e)))
+
+        try:
+            locked = self.lock_fd(fd)
+        except BaseException:
+            os.close(fd)
+            raise
+
+        self.acquired = True
+
+        if locked:
+            self.fd = fd
+        else:
+            os.close(fd)
+
+    def release(self):
+        self.acquired = False
+
+        if self.fd is None:
+            return
+
+        unlock(self.fd)
+        os.close(self.fd)
+        self.fd = None
+
+    def __enter__(self):
+        if not self.acquired:
+            self.acquire()
+
+        return self
+
+    def __exit__(self, *args):
+        self.release()
+
+
+# Take the lock of the repository for a command, or exit with the
+# error. Used as 'with lock_repo():'.
+def lock_repo():
+    lock = RepoLock()
+
+    try:
+        lock.acquire()
+    except VrfdirError as e:
+        logger.error('%s' % e)
+        sys.exit(EXIT_ERROR)
+
+    return lock
+
+
 def open_repo():
     try:
         return VrfdirRepo.open()
@@ -1298,21 +1456,24 @@ def cmd_init(args):
                          'not a directory' % VRFDIR_DIRECTORY)
             sys.exit(EXIT_ERROR)
 
+        # exist_ok for another init which created it just now, it
+        # fails below as the repository exists
         try:
-            os.makedirs(VRFDIR_DIRECTORY)
+            os.makedirs(VRFDIR_DIRECTORY, exist_ok=True)
         except OSError as e:
             logger.error('cannot create the directory %s: %s' %
                          (VRFDIR_DIRECTORY, error_reason(e)))
             sys.exit(EXIT_ERROR)
 
-    for path in (VRFDIR_MANIFEST_PATH, VRFDIR_LEGACY_PATH):
-        if os.path.lexists(path):
-            logger.error('a repository already exists in this directory, '
-                         'not overwriting %s' % path)
-            sys.exit(EXIT_ERROR)
+    with lock_repo():
+        for path in (VRFDIR_MANIFEST_PATH, VRFDIR_LEGACY_PATH):
+            if os.path.lexists(path):
+                logger.error('a repository already exists in this '
+                             'directory, not overwriting %s' % path)
+                sys.exit(EXIT_ERROR)
 
-    sf = VrfdirRepo()
-    write_repo(sf)
+        sf = VrfdirRepo()
+        write_repo(sf)
 
 
 def cmd_status(args):
@@ -1356,6 +1517,13 @@ def cmd_status(args):
 def cmd_add(args):
     logger.debug('cmd add %s' % args)
 
+    # before manifest.json is read, so that nothing which another
+    # vrfdir adds in the meantime is lost by the write
+    with lock_repo():
+        add_files(args)
+
+
+def add_files(args):
     repo = open_repo()
 
     progress = ProgressMeter('Adding files', args.quiet)
@@ -1482,6 +1650,12 @@ def cmd_check(args):
 def cmd_upgrade(args):
     logger.debug('cmd upgrade %s' % args)
 
+    # before manifest.json is read, see cmd_add()
+    with lock_repo():
+        upgrade_repo(args)
+
+
+def upgrade_repo(args):
     repo = open_repo()
 
     # Only the files which exist with the same size are read, as in
@@ -1652,6 +1826,13 @@ upgraded in the last save. A new manifest.json is read back and its
 checksum verified before it replaces the old one, a file which does
 not read back as it was written is an error and nothing is saved.
 
+Only one command at a time can change the repository: init, add and
+upgrade lock .vrfdir/lock, and while one of them runs another one
+fails with an error (exit code 3). The other commands only read the
+repository and can be run at any time. The lock is released when the
+command ends, also when it crashes or is killed, so it never has to be
+removed by hand.
+
 A repository from an older vrfdir has the MD5 checksum of the files
 it added. They are still checked as before, run 'vrfdir upgrade' to
 replace them with SHA-256 checksums.
@@ -1695,7 +1876,7 @@ exists.
 exit codes:
   0    the repository was created
   3    error: the repository already exists or it could not be
-       created
+       created, or another vrfdir is changing the repository
   64   wrong command line
   130  interrupted
 '''
@@ -1721,8 +1902,8 @@ calculated so far are still saved.
 exit codes:
   0    all the files were added
   3    error: a file or a directory could not be read, a path cannot
-       be added, or the repository is missing, cannot be read or
-       cannot be written
+       be added, the repository is missing, cannot be read or cannot
+       be written, or another vrfdir is changing the repository
   64   wrong command line
   130  interrupted, the checksums calculated so far were saved
 '''
@@ -1845,8 +2026,9 @@ exit codes:
        not upgraded
   2    corruption: the content of a file has changed, it was not
        upgraded
-  3    error: a file or a directory could not be read, or the
-       repository is missing or cannot be read
+  3    error: a file or a directory could not be read, the
+       repository is missing or cannot be read, or another vrfdir is
+       changing the repository
   64   wrong command line
   130  interrupted, what was upgraded so far is saved
 '''
