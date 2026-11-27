@@ -341,6 +341,40 @@ def is_outside_path(name):
             name.startswith('/') or name == '..' or name.startswith('../'))
 
 
+def refuse_path(verb, name, reason):
+    return VrfdirError('cannot %s %s: %s' % (verb, name_for_message(name),
+                                             reason))
+
+
+# Check a path from the command line of a command (verb is 'add' and
+# so on, for the message) and return it as a name. The path does not
+# have to exist. listings is the cache of disk_name(). Raises
+# VrfdirError when the path cannot be a name in the repository.
+def command_name(path, verb, listings):
+    # normpath() would make this '.', which is everything
+    if path == '':
+        raise refuse_path(verb, "''", 'empty file name')
+
+    name = path_to_name(path)
+
+    if is_outside_path(name):
+        raise refuse_path(verb, name, 'it is outside of the current '
+                          'directory')
+
+    if not is_native_name(name):
+        raise refuse_path(verb, name, 'it is not a valid file name on this '
+                          'system')
+
+    if CASE_INSENSITIVE:
+        name = disk_name(name, listings)
+
+    if is_vrfdir_path(name):
+        raise refuse_path(verb, name, 'it is inside %s, the directory of '
+                          'vrfdir itself' % VRFDIR_DIRECTORY)
+
+    return name
+
+
 # In the manifest a file name is its bytes decoded as UTF-8, and the
 # bytes which are not valid UTF-8 as surrogate escapes. Elsewhere the
 # names are strings in the filesystem encoding, which depends on the
@@ -800,29 +834,10 @@ class VrfdirRepo:
         unreadable = []
 
         def refuse(name, reason):
-            return VrfdirError('cannot add %s: %s' %
-                               (name_for_message(name), reason))
+            return refuse_path('add', name, reason)
 
         for name in paths:
-            # normpath() would make this '.', which adds everything
-            if name == '':
-                raise refuse("''", 'empty file name')
-
-            name = path_to_name(name)
-
-            if is_outside_path(name):
-                raise refuse(name, 'it is outside of the current directory')
-
-            if not is_native_name(name):
-                raise refuse(name, 'it is not a valid file name on this '
-                             'system')
-
-            if CASE_INSENSITIVE:
-                name = disk_name(name, listings)
-
-            if is_vrfdir_path(name):
-                raise refuse(name, 'it is inside %s, the directory of vrfdir '
-                             'itself' % VRFDIR_DIRECTORY)
+            name = command_name(name, 'add', listings)
 
             # not os.path.isfile() and the like, they hide why a path
             # cannot be accessed
