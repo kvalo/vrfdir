@@ -47,7 +47,8 @@ checksums), the tests use them to check that.
   macOS (`macos-latest`, with GNU coreutils and sed from brew), on
   FreeBSD, OpenBSD and NetBSD (VMs of `cross-platform-actions/action`,
   with GNU coreutils and sed from the packages) and on Windows
-  (`windows-latest`, in the Git Bash of Git for Windows).
+  (`windows-latest` and `windows-11-arm`, in the Git Bash of Git for
+  Windows).
   It installs `cmdspecs` from a pinned tag, bump the tag when needed
 
 There is no build step. The scripts have no file extensions to glob on,

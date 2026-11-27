@@ -209,7 +209,11 @@ jobs:
           exit $status
 
   test-windows:
-    runs-on: windows-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm]
+    runs-on: ${{ matrix.os }}
     defaults:
       run:
         # The tests are sh scripts, cmdspecs runs them with the sh of
