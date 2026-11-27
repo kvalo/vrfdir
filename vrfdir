@@ -2125,8 +2125,17 @@ exit codes:
 '''
 
 
+# Printed by --version after the version, as the GNU Coding Standards
+# ask. The copyright is the same as in the SPDX header above.
+LICENSE_NOTICE = '''\
+Copyright (C) 2026 Kalle Valo
+License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
+This is free software: you are free to change and redistribute it.
+There is NO WARRANTY, to the extent permitted by law.'''
+
+
 class VersionAction(argparse.Action):
-    '''Print the version and the environment and exit.
+    '''Print the version, the license and the environment and exit.
 
     It needs no repository, so it works when the repository is the
     problem.
@@ -2139,6 +2148,8 @@ class VersionAction(argparse.Action):
 
     def __call__(self, parser, namespace, values, option_string=None):
         print('%s %s' % (parser.prog, version_string()))
+        print()
+        print(LICENSE_NOTICE)
         print()
         print_environment()
         parser.exit(EXIT_OK)
@@ -2173,8 +2184,9 @@ def build_parser():
     parser.add_argument('-d', '--debug', action='store_true',
                         help='print debug messages to stderr')
     parser.add_argument('-V', '--version', action=VersionAction,
-                        help='print the version and the environment '
-                        '(Python, system) for bug reports and exit')
+                        help='print the version, the license and the '
+                        'environment (Python, system) for bug reports '
+                        'and exit')
     subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
                                        dest='command', required=True)
 

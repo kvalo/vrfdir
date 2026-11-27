@@ -2,9 +2,10 @@
 # SPDX-FileCopyrightText: 2026 Kalle Valo
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
-# test that --version and -V print the version and the environment, and
-# need no repository. The values depend on the machine and change with
-# every release, so only the labels are compared.
+# test that --version and -V print the version, the license and the
+# environment, and need no repository. The values of the version and the
+# environment depend on the machine and change with every release, so
+# only their labels are compared.
 
 cd "$DATADIR" || exit 1
 
@@ -23,6 +24,8 @@ if head -1 version.txt | grep -Eq '^vrfdir [0-9]+\.[0-9]+\.[0-9]+'; then
 else
     echo "wrong output: $(cat version.txt)"
 fi
+
+sed -n '3,6p' version.txt
 
 sed -n '/^Environment:/,$p' version.txt | sed 's/:.*//'
 

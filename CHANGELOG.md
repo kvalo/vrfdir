@@ -27,6 +27,8 @@ project adheres to [Semantic Versioning][semver].
 - `vrfdir --version` (`-V`) also prints the version of Python and the
   system, the same as `vrfdir info --full`, and `--full-version`
   (`-F`) is removed.
+- `vrfdir --version` (`-V`) prints the copyright and the license after
+  the version.
 
 ### Fixed
 
