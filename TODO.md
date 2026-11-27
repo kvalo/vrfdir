@@ -28,11 +28,13 @@ again.
 - An old manifest.json can have paths outside of the repository
   ('../x', absolute paths) or inside .vrfdir. add refuses those
   now, but the old entries stay and status shows them as
-  conflicts (C). The rm command would solve this.
+  conflicts (C) or deleted (D). 'vrfdir refresh .' removes them,
+  but only with '.', a path cannot name them. Test that.
 
 - No modification time is stored, only size and checksum. A file
-  which was edited on purpose and a file which was corrupted look
-  the same in check. Related to the refresh item below.
+  which was edited on purpose without changing its size and a file
+  which was corrupted look the same in check, and refresh cannot
+  accept the edit. See the item of the modification time below.
 
 - vrfdir only works in the directory which has .vrfdir, it does
   not look for it in the parent directories like git does.
@@ -62,16 +64,30 @@ but the help texts do not say it. Decide, document it in the help
 text of add and test it. tests/specs/vrfdir-in-subdir.script records
 what happens now.
 
-## implement 'vrfdir refresh'
+## store the modification time of every file (manifest version 4)
 
-The refresh command updates all changes (deletions, checksum
-changes etc) in the files to the json list. But does NOT add new
-files, those need to be explicitly added with 'vrfdir add'.
+refresh accepts only what status sees: deleted files, names which
+are not files anymore and new sizes. A file which was edited on
+purpose without changing its size looks the same as corruption, and
+check reports it as modified forever. With the modification time
+(`st_mtime_ns`) in every entry, a changed checksum with a new mtime
+is most likely an edit, and one with the same mtime is corruption,
+which does not touch the mtime. Then status could show a same-size
+edit without reading the file, and refresh could accept it.
 
-maybe should ask for confirmation from the user first?
-
-It changes the repository, so it takes the lock (`with lock_repo():`
-and `open_repo(locked=True)`) like add.
+- Needs `MANIFEST_VERSION` 4, the mtime in `manifest_checksum()` and
+  a migration: the old entries have no mtime until refresh or
+  upgrade sets it.
+- The repository has to work after a move: a copy without the
+  timestamps (`cp`, `rsync` without `-t`) changes every mtime, and
+  the precision differs (FAT 2 s, exFAT 10 ms, HFS+ 1 s, NTFS 100
+  ns). Compare with the coarser precision, and decide what a changed
+  mtime with the same checksum does.
+- An mtime can be set back on purpose (`touch -r`, `tar`), so it is
+  a hint and not a proof. That makes an edit look like corruption,
+  never the other way around.
+- The same format change can bring the created and last-modified
+  fields and `last_checked` of the items below.
 
 ## cmd_add: should run verify_files() first
 
@@ -97,9 +113,10 @@ Make it possible to remove files from json. Also can take
 directories as argument. It takes the lock of the repository like
 add.
 
-Until then there is no way to remove a file: manifest.json has a
-checksum of its content and vrfdir refuses a manifest.json which was
-edited by hand.
+Until then there is no way to remove a file which still exists:
+manifest.json has a checksum of its content and vrfdir refuses a
+manifest.json which was edited by hand. 'vrfdir refresh' removes
+only the deleted files.
 
 ## add syslog support
 
