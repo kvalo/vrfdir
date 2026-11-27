@@ -22,6 +22,12 @@ project adheres to [Semantic Versioning][semver].
   which cannot lock gives a warning and the command works without
   the lock.
 
+### Changed
+
+- `vrfdir --version` (`-V`) also prints the version of Python and the
+  system, the same as `vrfdir info --full`, and `--full-version`
+  (`-F`) is removed.
+
 ### Fixed
 
 - A command which reads the repository while another vrfdir saves it

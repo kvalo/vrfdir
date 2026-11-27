@@ -2090,8 +2090,8 @@ With --full the output ends with an Environment section, for bug
 reports: the version of vrfdir, Python and the system, the encoding
 of the file names and of the locale and whether the names are case
 sensitive. It has nothing about the user, the host or the directory.
-'vrfdir --full-version' prints the version and the same section
-without a repository, for when the repository is the problem.
+'vrfdir --version' prints the version and the same section without
+a repository, for when the repository is the problem.
 With --machine-readable these are the last lines, as env.vrfdir,
 env.python, env.system, env.fs_encoding, env.locale_encoding and
 env.case_insensitive.
@@ -2125,11 +2125,11 @@ exit codes:
 '''
 
 
-class FullVersionAction(argparse.Action):
+class VersionAction(argparse.Action):
     '''Print the version and the environment and exit.
 
-    Like --version, it needs no repository, so it works when the
-    repository is the problem.
+    It needs no repository, so it works when the repository is the
+    problem.
     '''
 
     def __init__(self, option_strings, dest=argparse.SUPPRESS,
@@ -2172,10 +2172,7 @@ def build_parser():
         'command.')
     parser.add_argument('-d', '--debug', action='store_true',
                         help='print debug messages to stderr')
-    parser.add_argument('-V', '--version', action='version',
-                        version='%(prog)s ' + version_string(),
-                        help='print the version and exit')
-    parser.add_argument('-F', '--full-version', action=FullVersionAction,
+    parser.add_argument('-V', '--version', action=VersionAction,
                         help='print the version and the environment '
                         '(Python, system) for bug reports and exit')
     subparsers = parser.add_subparsers(title='commands', metavar='COMMAND',
