@@ -55,6 +55,13 @@ echo add works after the lock is released
 "$SRCDIR/vrfdir" add --quiet b
 "$SRCDIR/vrfdir" list
 
+echo a temporary file of a save which is running now is no stale file
+echo garbage > .vrfdir/manifest.json.tmp
+locked 0 list
+echo without the lock list warns about it
+"$SRCDIR/vrfdir" list
+rm .vrfdir/manifest.json.tmp
+
 # Only the first line is compared, the rest is the stacktrace.
 echo add which crashes does not leave the lock behind
 echo cccc > c

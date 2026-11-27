@@ -19,22 +19,6 @@ the CI matrix runs on ubuntu-24.04 until it is fixed. Report it to
 uutils, and when a newer version works, make the CI use `ubuntu-latest`
 again.
 
-## lock the repository
-
-Nothing prevents two vrfdir processes from changing the same
-repository. Two add commands at the same time both read
-manifest.json, and the one which writes last drops the files the
-other one added. They also share the same manifest.json.tmp name,
-and a command started while another one is writing warns about a
-stale manifest.json.tmp even though nothing is wrong.
-
-Take a lock (fcntl.flock() on a file in .vrfdir) in the commands
-which write: init and add, later refresh and rm. The read-only
-commands do not need it as the rename in write() is atomic.
-
-Windows has no fcntl module, there the lock needs
-msvcrt.locking().
-
 ## smaller issues found in the review
 
 - add ignores a symbolic link given on the command line without
@@ -86,6 +70,9 @@ files, those need to be explicitly added with 'vrfdir add'.
 
 maybe should ask for confirmation from the user first?
 
+It changes the repository, so it takes the lock (`with lock_repo():`
+and `open_repo(locked=True)`) like add.
+
 ## cmd_add: should run verify_files() first
 
 just to make sure that the repo is intact and there's no
@@ -107,7 +94,8 @@ naturally show them also in info command
 ## cmd_rm: implement
 
 Make it possible to remove files from json. Also can take
-directories as argument.
+directories as argument. It takes the lock of the repository like
+add.
 
 Until then there is no way to remove a file: manifest.json has a
 checksum of its content and vrfdir refuses a manifest.json which was

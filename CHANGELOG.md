@@ -22,6 +22,12 @@ project adheres to [Semantic Versioning][semver].
   which cannot lock gives a warning and the command works without
   the lock.
 
+### Fixed
+
+- A command which reads the repository while another vrfdir saves it
+  no longer warns about a stale `.vrfdir/manifest.json.tmp`, the file
+  of that save.
+
 ## [0.2.0] - 2026-11-24
 
 ### Added

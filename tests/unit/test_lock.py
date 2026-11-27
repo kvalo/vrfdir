@@ -141,3 +141,42 @@ def test_lock_of_a_killed_process_is_released(vrfdir, workdir):
 
     with vrfdir.RepoLock() as lock:
         assert lock.fd is not None
+
+
+def test_writer_active_without_a_lock_file(vrfdir, workdir):
+    assert not vrfdir.writer_active()
+
+    # a read never creates the lock file
+    assert not (workdir / vrfdir.VRFDIR_LOCK_PATH).exists()
+
+
+def test_writer_active_while_locked(vrfdir, workdir):
+    with vrfdir.RepoLock():
+        assert vrfdir.writer_active()
+
+    assert not vrfdir.writer_active()
+
+
+def test_writer_active_releases_its_lock(vrfdir, workdir, no_retries):
+    with vrfdir.RepoLock():
+        pass
+
+    assert not vrfdir.writer_active()
+
+    with vrfdir.RepoLock() as lock:
+        assert lock.fd is not None
+
+
+@pytest.mark.parametrize('locked', [False, True])
+def test_open_while_another_vrfdir_saves(vrfdir, workdir, caplog, locked):
+    # the temporary file of the save which the lock holder does now
+    vrfdir.VrfdirRepo().write()
+    (workdir / vrfdir.VRFDIR_MANIFEST_TMP_PATH).write_text('garbage')
+
+    with vrfdir.RepoLock():
+        vrfdir.VrfdirRepo.open(locked=locked)
+
+    # The holder of the lock itself knows that the file is stale. The
+    # other vrfdir, which only reads, does not warn.
+    warnings = [r for r in caplog.records if r.levelno == logging.WARNING]
+    assert len(warnings) == (1 if locked else 0)

@@ -1135,8 +1135,9 @@ class VrfdirRepo:
 
         return [(name, entry) for (_, name, entry) in keyed]
 
+    # locked is set when the caller holds the lock of the repository
     @staticmethod
-    def open():
+    def open(locked=False):
         filename = VRFDIR_MANIFEST_PATH
         legacy = False
 
@@ -1159,8 +1160,14 @@ class VrfdirRepo:
         # The temporary file of write() is left behind only if vrfdir
         # was killed in the middle of a write. The manifest is still
         # the complete previous version. Don't remove the file here,
-        # it can also belong to another vrfdir which is writing right
-        # now. The next write replaces it.
+        # the next write replaces it. While another vrfdir holds the
+        # lock, the file can be the one which it is writing right now
+        # and nothing is wrong.
+        if not locked and writer_active():
+            logger.debug('another vrfdir is changing the repository, not '
+                         'checking for its temporary files')
+            return VrfdirRepo(buf, legacy)
+
         for tmpname in (VRFDIR_BACKUP_TMP_PATH, VRFDIR_MANIFEST_TMP_PATH):
             if os.path.lexists(tmpname):
                 logger.warning('%s exists: an earlier vrfdir was '
@@ -1391,6 +1398,28 @@ class RepoLock:
         self.release()
 
 
+# Whether another vrfdir holds the lock of the repository now, for a
+# command which only reads it. The lock is taken for a moment and
+# released at once. The file is not created, a repository without it
+# has never been locked. Anything else than a held lock is False.
+def writer_active():
+    try:
+        fd = os.open(VRFDIR_LOCK_PATH, os.O_RDONLY)
+    except OSError:
+        return False
+
+    try:
+        try_lock(fd, shared=True)
+        unlock(fd)
+        return False
+    except LOCK_HELD_ERROR:
+        return True
+    except OSError:
+        return False
+    finally:
+        os.close(fd)
+
+
 # Take the lock of the repository for a command, or exit with the
 # error. Used as 'with lock_repo():'.
 def lock_repo():
@@ -1405,9 +1434,9 @@ def lock_repo():
     return lock
 
 
-def open_repo():
+def open_repo(locked=False):
     try:
-        return VrfdirRepo.open()
+        return VrfdirRepo.open(locked)
     except VrfdirError as e:
         logger.error('%s' % e)
     except OSError as e:
@@ -1524,7 +1553,7 @@ def cmd_add(args):
 
 
 def add_files(args):
-    repo = open_repo()
+    repo = open_repo(locked=True)
 
     progress = ProgressMeter('Adding files', args.quiet)
     errors = 0
@@ -1656,7 +1685,7 @@ def cmd_upgrade(args):
 
 
 def upgrade_repo(args):
-    repo = open_repo()
+    repo = open_repo(locked=True)
 
     # Only the files which exist with the same size are read, as in
     # check. The others are told, but they do not stop the rest.
