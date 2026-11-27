@@ -45,8 +45,8 @@ checksums), the tests use them to check that.
 - CI: `.github/workflows/ci.yml` runs `./check`, `./unit` and `./lint`
   on Ubuntu, and `./check` and `./unit` on Python 3.11 to 3.15, on
   macOS (`macos-latest`, with GNU coreutils and sed from brew), on
-  FreeBSD and OpenBSD (VMs of `cross-platform-actions/action`, with GNU
-  coreutils and sed from the packages) and on Windows
+  FreeBSD, OpenBSD and NetBSD (VMs of `cross-platform-actions/action`,
+  with GNU coreutils and sed from the packages) and on Windows
   (`windows-latest`, in the Git Bash of Git for Windows).
   It installs `cmdspecs` from a pinned tag, bump the tag when needed
 
@@ -196,12 +196,11 @@ commands, signals, fault injection and unreadable files.
   on the current system (`is_native_name()`) is kept in
   `VrfdirRepo.foreign` and written back as it is, never dropped.
 - vrfdir has to work on Linux, the BSDs, macOS and Windows. CI runs
-  the tests (`./check` and `./unit`) on Linux, FreeBSD and OpenBSD (in
-  VMs), macOS and Windows, but nothing runs on NetBSD, and TODO.md
-  lists what is not tested on Windows. Say so when you change code
-  which is only for one system: for FreeBSD, OpenBSD, macOS and
-  Windows CI is the only test, for NetBSD the user has to try it by
-  hand.
+  the tests (`./check` and `./unit`) on Linux, FreeBSD, OpenBSD and
+  NetBSD (in VMs), macOS and Windows, and TODO.md lists what is not
+  tested on Windows. Say so when you change code which is only for
+  one system: for FreeBSD, OpenBSD, NetBSD, macOS and Windows CI is
+  the only test.
 - The tests are run in a UTF-8 locale.
 
 ## Command line options
