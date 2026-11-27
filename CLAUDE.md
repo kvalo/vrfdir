@@ -198,10 +198,9 @@ commands, signals, fault injection and unreadable files.
   `VrfdirRepo.foreign` and written back as it is, never dropped.
 - vrfdir has to work on Linux, the BSDs, macOS and Windows. CI runs
   the tests (`./check` and `./unit`) on Linux, FreeBSD, OpenBSD and
-  NetBSD (in VMs), macOS and Windows, and TODO.md lists what is not
-  tested on Windows. Say so when you change code which is only for
-  one system: for FreeBSD, OpenBSD, NetBSD, macOS and Windows CI is
-  the only test.
+  NetBSD (in VMs), macOS and Windows. Say so when you change code
+  which is only for one system: for FreeBSD, OpenBSD, NetBSD, macOS
+  and Windows CI is the only test.
 - The tests are run in a UTF-8 locale.
 
 ## Command line options

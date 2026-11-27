@@ -9,8 +9,9 @@
 # changing /deny to a path.
 #
 # Only for a file: on the CI runner a deny entry of a directory has no
-# effect, see TODO.md. The tests of a directory which cannot be read
-# use chmod and are in tests/specs-unix.
+# effect, most likely as its user is an administrator with the backup
+# privilege. The tests of a directory which cannot be read use chmod
+# and are in tests/specs-unix.
 #
 # usage: unreadable [--undo] FILE
 

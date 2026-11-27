@@ -142,30 +142,6 @@ Open questions, the tools have not been chosen yet:
 - Add the new files to `./lint` and check that the tests still
   pass from a clean install.
 
-## test on the other operating systems
-
-CI runs `./check` and `./unit` on Linux, FreeBSD, OpenBSD, macOS
-and Windows, but nothing runs on NetBSD. Run `./check` on a real
-NetBSD machine, and try a symbolic link to a directory and
-a file name which is not valid in the locale.
-
-On Windows the tests run in Git Bash on the CI runner. These are not
-tested there and have to be tried by hand after a change:
-
-- A directory which cannot be read, and init in a directory where
-  .vrfdir cannot be created. On the runner a deny entry of icacls on
-  a directory has no effect, most likely as its user is an
-  administrator with the backup privilege. A deny entry of a file
-  works and is tested.
-- vrfdir started with the `py` launcher from cmd and PowerShell, as
-  README.md tells, and its output in the console.
-- Ctrl-C in a real console. The tests raise SIGINT in the process,
-  which tests the handler but not the console.
-- A path longer than 260 characters, with and without the long paths
-  enabled.
-- Replacing manifest.json while another program has it open. The unit
-  tests hold the file open in the same process.
-
 ## ignore the files the operating system creates
 
 macOS creates .DS_Store and Windows creates Thumbs.db and
