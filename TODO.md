@@ -179,6 +179,39 @@ and when they are added they change later and look like
 corruption. Needs a way to ignore files, maybe a list of patterns
 in .vrfdir.
 
+## the case of the names on a filesystem which ignores it on Linux
+
+`CASE_INSENSITIVE` is set by the system (Windows and macOS), not by
+the filesystem. On Linux an exFAT or FAT32 disk, the usual one moved
+between systems, ignores the case too, and vrfdir then treats the two
+spellings of a name as two files. Tried on CI on the Ubuntu runner
+with loop mounted exFAT and vfat images, both behave the same:
+
+- A name given in another case is stored as it was typed:
+  `disk_name()` is only called when `CASE_INSENSITIVE`. With the
+  file `photo.jpg`, `vrfdir add PHOTO.JPG` adds `PHOTO.JPG`, status
+  shows `C PHOTO.JPG` and `? photo.jpg` (exit value 1), and check
+  refuses with "1 file(s) deleted or changed". `vrfdir add
+  photo.jpg` then adds the same file a second time, list has both
+  names.
+- `is_vrfdir_path()` folds the case only when `CASE_INSENSITIVE`.
+  `vrfdir add .vrfdir` is refused, but `vrfdir add .VRFDIR` (and
+  `.VRFDIR/manifest.json`) adds the files of vrfdir itself as
+  `.VRFDIR/lock`, `.VRFDIR/manifest.json` and
+  `.VRFDIR/manifest.json.bak`. status shows them as `C`, and check
+  refuses with "3 file(s) deleted or changed" from then on, as
+  manifest.json changes with every save. Most likely nothing can
+  remove them, see cmd_rm above. `vrfdir add .` finds `.vrfdir`
+  with its real name and skips it, as it should.
+
+Whether the filesystem ignores the case has to be found out per
+repository, for example once at the start by comparing the
+`os.stat()` of `.vrfdir` and of the same name in another case, and
+then used instead of `CASE_INSENSITIVE` (also for the output of
+`vrfdir info`). The tests need a filesystem which ignores the case on
+Linux, see the item of the filesystems of a moved disk below: the
+tests of `tests/specs-caseless/` should then pass there too.
+
 ## measure the coverage on every system in CI
 
 `./coverage` runs only on Linux, so nothing measures which lines the
@@ -225,14 +258,8 @@ only on ext4 (Linux), UFS/FFS (the BSDs), APFS (macOS) and NTFS
 
 - The case of the names is ignored also on Linux, but
   `CASE_INSENSITIVE` is set by the system and not by the filesystem.
-  Two problems seem to follow, not tried yet: `vrfdir add PHOTO.JPG`
-  of `photo.jpg` stores the name as it was typed, as `disk_name()` is
-  only called when `CASE_INSENSITIVE`, and status then shows `D
-  PHOTO.JPG` and `? photo.jpg`. And `is_vrfdir_path()` does not
-  casefold, so `vrfdir add .VRFDIR` would add the files of vrfdir
-  itself, whose manifest.json changes with every save. The case may
-  have to be checked per filesystem, for example by comparing the
-  `os.stat()` of `.vrfdir` and of `.VRFDIR` once at the start.
+  See the item of the case of the names on Linux above, which these
+  tests have to cover.
 - A name which is not valid UTF-8 cannot be created (exFAT stores
   UTF-16), and FAT32 and exFAT refuse `\ : * ? " < > |`, like
   Windows. Linux may give an error which differs from Windows here.
