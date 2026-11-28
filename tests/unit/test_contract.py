@@ -220,3 +220,17 @@ def test_version_string(vrfdir):
                             version)
     else:
         assert version == vrfdir.VERSION
+
+
+# the version of a release has no hash, whatever VERSION is now
+def test_version_string_of_a_release(vrfdir, monkeypatch):
+    monkeypatch.setattr(vrfdir, 'VERSION', '1.2.3')
+
+    assert vrfdir.version_string() == '1.2.3'
+
+
+def test_version_string_without_the_script(vrfdir, monkeypatch, tmp_path):
+    monkeypatch.setattr(vrfdir, 'VERSION', '1.2.3+git')
+    monkeypatch.setattr(vrfdir, '__file__', str(tmp_path / 'missing'))
+
+    assert vrfdir.version_string() == '1.2.3+git.nohash'
