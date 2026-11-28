@@ -1,0 +1,60 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test vrfdir started with the Python launcher, from cmd and from
+# PowerShell, as README.md tells. py has to pick a Python which can run
+# vrfdir from the #! line, and the arguments and the exit value have to
+# get through.
+#
+# The output of a program in PowerShell 5 goes through the code page
+# of the console when it is redirected, which is PowerShell and not
+# vrfdir, so the names there are ASCII. The output through cmd is
+# vrfdir's own and has a name which is not ASCII.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+vrfdir_win=$(cygpath -w "$SRCDIR/vrfdir")
+
+# cmd cannot be given the arguments safely on its command line from
+# sh, a batch file passes them on as they are
+printf '@py "%s" %%*\r\n' "$vrfdir_win" > vrfdir.bat
+
+from_cmd() {
+    cmd //c ..\\vrfdir.bat "$@"
+    echo "exit value: $?"
+}
+
+from_powershell() {
+    powershell -NoProfile -NonInteractive -Command \
+        "py '$vrfdir_win' $*; exit \$LASTEXITCODE"
+    echo "exit value: $?"
+}
+
+# the repository is in a directory of its own, so that the batch file
+# is not in it
+mkdir repo
+cd repo || exit 1
+echo aaaa > a
+mkdir dir
+echo bbbb > 'dir/ä'
+
+echo from cmd
+from_cmd init
+from_cmd add --quiet 'dir\ä' a
+from_cmd list
+from_cmd status
+from_cmd check --quiet
+
+echo from powershell
+from_powershell status
+from_powershell check --quiet
+echo changed > a
+from_powershell status
+from_powershell check --quiet
+
+# cleanup
+cd .. || exit 1
+rm -fr repo vrfdir.bat
