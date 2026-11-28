@@ -232,3 +232,22 @@ jobs:
         # also when ./check failed, so that both are seen
         if: ${{ !cancelled() }}
         run: ./unit
+      - name: Run the test of long paths with them disabled
+        # The runner has the long paths enabled, and the test checks
+        # the behaviour of the setting it finds. The runner is thrown
+        # away after the job, the setting is not restored.
+        if: ${{ !cancelled() }}
+        run: |
+          key='HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem'
+          powershell -NoProfile -NonInteractive -Command \
+            "Set-ItemProperty -Path $key -Name LongPathsEnabled -Value 0"
+          # A new process has to see the change, otherwise the test
+          # would pass with the long paths still enabled.
+          long="$RUNNER_TEMP/long/$(printf '%0250d' 0)"
+          mkdir -p "$long"
+          if python -c 'import os, sys; os.listdir(sys.argv[1])' "$long"
+          then
+            echo "the long paths are still enabled" >&2
+            exit 1
+          fi
+          ./check -t long-paths
