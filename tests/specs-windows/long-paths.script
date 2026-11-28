@@ -1,0 +1,98 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test a path longer than the 260 characters of Windows. As README.md
+# tells, it works only when long paths are enabled in Windows, and
+# otherwise add and check report it as an error and do the rest. The
+# test checks the behaviour which the setting of this system gives and
+# prints the same in both cases, CI runs it with both.
+#
+# Already the first directory under long makes the path too long, so
+# that the error is the same whatever the path of $DATADIR is.
+# tests/data/long-paths.json is the manifest.json of this tree, written
+# by vrfdir, so that check has a long path to check also when it cannot
+# be added.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# reg prints the lines with '\r\n'
+if reg query 'HKLM\SYSTEM\CurrentControlSet\Control\FileSystem' \
+        //v LongPathsEnabled 2>/dev/null | grep -q 'REG_DWORD *0x1'; then
+    long_paths=on
+else
+    long_paths=off
+fi
+
+d1=$(printf '%0250d' 0 | tr 0 d)
+d2=$(printf '%0250d' 0 | tr 0 e)
+
+# the output is outside of the repository
+mkdir repo
+cd repo || exit 1
+mkdir -p "long/$d1/$d2"
+echo aaaa > short
+echo bbbb > "long/$d1/$d2/file"
+
+# run vrfdir and check its exit value, the number of lines of its
+# output, and that it has errors only when it fails and they are about
+# the long path
+#
+# usage: run STEP EXIT-ON LINES-ON EXIT-OFF LINES-OFF ARGS...
+run() {
+    step=$1
+    if [ $long_paths = on ]; then
+        exit_expected=$2
+        lines_expected=$3
+    else
+        exit_expected=$4
+        lines_expected=$5
+    fi
+    shift 5
+
+    "$SRCDIR/vrfdir" "$@" > ../out 2> ../err
+    retval=$?
+    lines=$(wc -l < ../out)
+
+    ok=yes
+    [ $retval = "$exit_expected" ] || ok=no
+    [ "$lines" = "$lines_expected" ] || ok=no
+    if [ $long_paths = on ] || [ "$exit_expected" = 0 ]; then
+        [ -s ../err ] && ok=no
+    else
+        # an error about the long path, and nothing else
+        [ -s ../err ] || ok=no
+        grep -v -q "^Error: cannot read.* long/$d1" ../err && ok=no
+    fi
+
+    if [ $ok = yes ]; then
+        echo "$step: as expected"
+    else
+        echo "$step: long paths $long_paths, exit value $retval," \
+             "$lines line(s) of output, stderr:"
+        cat ../err
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+
+run "add" 0 0 3 0 add --quiet short long
+run "list" 0 2 0 1 list
+
+if [ $long_paths = on ]; then
+    if ! cmp -s .vrfdir/manifest.json "$SRCDIR/tests/data/long-paths.json"
+    then
+        echo "manifest.json differs from tests/data/long-paths.json"
+    fi
+fi
+
+echo a repository which has the long path
+cp "$SRCDIR/tests/data/long-paths.json" .vrfdir/manifest.json
+run "status" 0 0 3 0 status
+run "check" 0 0 3 1 check --quiet
+
+# cleanup
+cd .. || exit 1
+rm -fr repo out err
