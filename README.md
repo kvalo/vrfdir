@@ -170,11 +170,13 @@ Everything in [Requirements](#requirements) above, and in addition:
 | `bash`                | some of the tests, dash cannot create the file names they use |
 | `md5sum`, `sha256sum` and the other coreutils | the tests, they compare vrfdir's checksums with those commands |
 | Git for Windows       | the tests on Windows, run `./check` and `./unit` in its Git Bash, which has `sh` and the coreutils |
+| `py` and PowerShell   | the tests on Windows, `py` comes with the installer of python.org but not with the Python of the Microsoft Store |
 | a UTF-8 locale        | running the tests                          |
 | `flake8`              | `./lint`                                   |
 | `shellcheck`          | `./lint`                                   |
 | `mdl` (markdownlint)  | `./lint`                                   |
 | `yamllint`            | `./lint`, optional, checks the GitHub workflow |
+| `reuse`               | `./lint`, optional, checks the license headers |
 | `python3-pytest`      | `./unit`, the unit tests                   |
 | `python3-coverage`    | `./coverage`                               |
 
@@ -185,11 +187,12 @@ needs nothing extra, the test data is created with the
 ### Commands
 
     ./check                  # run all tests
-    ./check -t status        # run one test, tests/specs/status.script
+    ./check -t status        # run one test, status.script of every directory
     ./check -k               # keep the temporary data of a failed test
     ./check --portable       # only tests/specs, for every system
+    ./unit                   # run the unit tests
     ./coverage               # run all tests, show the lines not run
-    ./lint                   # flake8, shellcheck, mdl and yamllint
+    ./lint                   # flake8, shellcheck, mdl, yamllint and reuse
     ./tests/benchmark        # simple_benchmark, see --help
 
 The tests are black-box: each `tests/specs/<name>.script` is run and
@@ -198,7 +201,9 @@ it. The tests in `tests/specs/` run on every system, the ones in
 `tests/specs-unix/`, `tests/specs-bytenames/`, `tests/specs-linux/`,
 `tests/specs-macos/`, `tests/specs-caseless/` and
 `tests/specs-windows/` only on the systems `./check` picks for them.
-See `./tests/benchmark --help` for the options of the benchmark.
+The unit tests in `tests/unit/` call the functions of `vrfdir` with
+pytest. See `./tests/benchmark --help` for the options of the
+benchmark.
 
 Known problems and plans are in [TODO.md](TODO.md).
 
