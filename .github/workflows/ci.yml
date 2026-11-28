@@ -11,6 +11,11 @@ on:
   schedule:
     - cron: "43 5 12 * *"
   workflow_dispatch:
+    inputs:
+      coverage:
+        description: "Measure the coverage of the tests on every system"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -18,6 +23,13 @@ permissions:
 env:
   # cmdspecs is not in apt or on PyPI, install it from this tag.
   CMDSPECS: git+https://github.com/kvalo/cmdspecs@v0.35.0
+  # The coverage run, by hand (the input) and once a month (the
+  # schedule): the jobs of test, macOS, the BSDs and Windows run
+  # ./coverage instead of ./check and ./unit, and the coverage job
+  # combines their data. Every job has the same version of coverage,
+  # so that the data can be combined.
+  COVERAGE: ${{ github.event_name == 'schedule' || inputs.coverage == true }}
+  COVERAGE_PIP: coverage==7.17.5
 
 jobs:
   test:
@@ -29,20 +41,35 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y flake8 python3-pytest \
             shellcheck markdownlint yamllint
-      - name: Install cmdspecs and reuse
+      - name: Install cmdspecs, reuse and coverage
         # The system Python is externally managed, so use a venv. It
         # sees the apt packages (pytest for ./unit). reuse is from
         # PyPI, the apt package of Ubuntu does not work.
         run: |
           python3 -m venv --system-site-packages "$RUNNER_TEMP/venv"
-          "$RUNNER_TEMP/venv/bin/pip" install "$CMDSPECS" reuse==5.0.2
+          "$RUNNER_TEMP/venv/bin/pip" install "$CMDSPECS" reuse==5.0.2 \
+            "$COVERAGE_PIP"
           echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
       - name: Run tests
+        if: env.COVERAGE != 'true'
         run: ./check
       - name: Run unit tests
+        if: env.COVERAGE != 'true'
         run: ./unit
+      - name: Run tests with coverage
+        if: env.COVERAGE == 'true'
+        run: |
+          mkdir -p coverage-data
+          ./coverage --data-file coverage-data/linux
       - name: Run linters
         run: ./lint
+      - name: Upload coverage data
+        if: ${{ !cancelled() && env.COVERAGE == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-linux
+          path: coverage-data/
+          if-no-files-found: error
 
   test-python:
     # Not ubuntu-latest: the sha256sum of uutils on 26.04 cannot read
@@ -94,12 +121,26 @@ jobs:
           prefix="$(brew --prefix)"
           echo "$prefix/opt/coreutils/libexec/gnubin" >> "$GITHUB_PATH"
           echo "$prefix/opt/gnu-sed/libexec/gnubin" >> "$GITHUB_PATH"
-      - name: Install cmdspecs and pytest
-        run: pip install "$CMDSPECS" pytest
+      - name: Install cmdspecs, pytest and coverage
+        run: pip install "$CMDSPECS" pytest "$COVERAGE_PIP"
       - name: Run tests
+        if: env.COVERAGE != 'true'
         run: ./check
       - name: Run unit tests
+        if: env.COVERAGE != 'true'
         run: ./unit
+      - name: Run tests with coverage
+        if: env.COVERAGE == 'true'
+        run: |
+          mkdir -p coverage-data
+          ./coverage --data-file coverage-data/macos
+      - name: Upload coverage data
+        if: ${{ !cancelled() && env.COVERAGE == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-macos
+          path: coverage-data/
+          if-no-files-found: error
 
   test-freebsd:
     # GitHub has no BSD runners, the tests run in a VM.
@@ -111,7 +152,7 @@ jobs:
           operating_system: freebsd
           version: "15.1"
       - name: Install tools
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE_PIP
         run: |
           # The tests use sha256sum, md5sum, wc, od and sed -i of GNU
           # coreutils and sed, FreeBSD has the BSD versions. The
@@ -119,6 +160,10 @@ jobs:
           # under their normal names. Some scripts need bash in
           # /bin.
           sudo pkg install -y python3 git bash coreutils gsed
+          # coverage needs the sqlite3 module, which is a package of
+          # its own for the version of python3
+          sudo pkg install -y "$(python3 -c \
+            'import sys; print("py%d%d-sqlite3" % sys.version_info[:2])')"
           sudo ln -s /usr/local/bin/bash /bin/bash
           mkdir "$HOME/gnubin"
           for gtool in $(pkg info -l coreutils gsed |
@@ -126,18 +171,34 @@ jobs:
             ln -s "$gtool" "$HOME/gnubin/$(basename "$gtool" | cut -c2-)"
           done
           python3 -m venv "$HOME/venv"
-          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest
+          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest \
+            "$COVERAGE_PIP"
       - name: Run tests
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE
         run: |
           # each step is a new session, set PATH again
           PATH="$HOME/gnubin:$HOME/venv/bin:$PATH"
           export PATH
+          if [ "$COVERAGE" = true ]; then
+            # the data goes back from the VM to the runner after
+            # the step, so it has to be in the workspace
+            mkdir -p coverage-data
+            exec ./coverage --data-file coverage-data/freebsd
+          fi
           status=0
           ./check || status=1
           # also when ./check failed, so that both are seen
           ./unit || status=1
           exit $status
+      - name: Upload coverage data
+        # Not when the tests failed: the files do not come back from
+        # the VM after a step which failed.
+        if: env.COVERAGE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-freebsd
+          path: coverage-data/
+          if-no-files-found: error
 
   test-openbsd:
     # See test-freebsd.
@@ -149,7 +210,7 @@ jobs:
           operating_system: openbsd
           version: "8.0"
       - name: Install tools
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE_PIP
         run: |
           # Same as FreeBSD: the GNU tools have the prefix g and
           # some scripts need bash in /bin.
@@ -161,18 +222,34 @@ jobs:
             ln -s "$gtool" "$HOME/gnubin/$(basename "$gtool" | cut -c2-)"
           done
           python3.14 -m venv "$HOME/venv"
-          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest
+          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest \
+            "$COVERAGE_PIP"
       - name: Run tests
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE
         run: |
           # each step is a new session, set PATH again
           PATH="$HOME/gnubin:$HOME/venv/bin:$PATH"
           export PATH
+          if [ "$COVERAGE" = true ]; then
+            # the data goes back from the VM to the runner after
+            # the step, so it has to be in the workspace
+            mkdir -p coverage-data
+            exec ./coverage --data-file coverage-data/openbsd
+          fi
           status=0
           ./check || status=1
           # also when ./check failed, so that both are seen
           ./unit || status=1
           exit $status
+      - name: Upload coverage data
+        # Not when the tests failed: the files do not come back from
+        # the VM after a step which failed.
+        if: env.COVERAGE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-openbsd
+          path: coverage-data/
+          if-no-files-found: error
 
   test-netbsd:
     # See test-freebsd.
@@ -184,7 +261,7 @@ jobs:
           operating_system: netbsd
           version: "11.1"
       - name: Install tools
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE_PIP
         run: |
           # Same as FreeBSD, but pkgsrc has the GNU tools also under
           # their normal names in /usr/pkg/gnu/bin. Some scripts need
@@ -195,18 +272,34 @@ jobs:
           ls -l /usr/pkg/gnu/bin/sha256sum /usr/pkg/gnu/bin/md5sum \
             /usr/pkg/gnu/bin/sed
           python3.14 -m venv "$HOME/venv"
-          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest
+          "$HOME/venv/bin/pip" install "$CMDSPECS" pytest \
+            "$COVERAGE_PIP"
       - name: Run tests
-        shell: cpa.sh {0} --environment-variables CMDSPECS
+        shell: cpa.sh {0} --environment-variables CMDSPECS COVERAGE
         run: |
           # each step is a new session, set PATH again
           PATH="/usr/pkg/gnu/bin:$HOME/venv/bin:$PATH"
           export PATH
+          if [ "$COVERAGE" = true ]; then
+            # the data goes back from the VM to the runner after
+            # the step, so it has to be in the workspace
+            mkdir -p coverage-data
+            exec ./coverage --data-file coverage-data/netbsd
+          fi
           status=0
           ./check || status=1
           # also when ./check failed, so that both are seen
           ./unit || status=1
           exit $status
+      - name: Upload coverage data
+        # Not when the tests failed: the files do not come back from
+        # the VM after a step which failed.
+        if: env.COVERAGE == 'true'
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-netbsd
+          path: coverage-data/
+          if-no-files-found: error
 
   test-windows:
     strategy:
@@ -224,14 +317,20 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.14"
-      - name: Install cmdspecs and pytest
-        run: pip install "$CMDSPECS" pytest
+      - name: Install cmdspecs, pytest and coverage
+        run: pip install "$CMDSPECS" pytest "$COVERAGE_PIP"
       - name: Run tests
+        if: env.COVERAGE != 'true'
         run: ./check
       - name: Run unit tests
         # also when ./check failed, so that both are seen
-        if: ${{ !cancelled() }}
+        if: ${{ !cancelled() && env.COVERAGE != 'true' }}
         run: ./unit
+      - name: Run tests with coverage
+        if: env.COVERAGE == 'true'
+        run: |
+          mkdir -p coverage-data
+          ./coverage --data-file coverage-data/${{ matrix.os }}
       - name: Run the test of long paths with them disabled
         # The runner has the long paths enabled, and the test checks
         # the behaviour of the setting it finds. The runner is thrown
@@ -250,4 +349,63 @@ jobs:
             echo "the long paths are still enabled" >&2
             exit 1
           fi
-          ./check -t long-paths
+          if [ "$COVERAGE" = true ]; then
+            # adds to the data of the step before, and runs the unit
+            # tests again
+            ./coverage --data-file coverage-data/${{ matrix.os }} \
+              -t long-paths
+          else
+            ./check -t long-paths
+          fi
+      - name: Upload coverage data
+        if: ${{ !cancelled() && env.COVERAGE == 'true' }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: coverage-${{ matrix.os }}
+          path: coverage-data/
+          if-no-files-found: error
+
+  coverage:
+    # The report of one system misses the lines of the others, the
+    # combination lists the lines which no system ran. Also when a
+    # system failed, with the data of the others. It is information,
+    # no percentage fails the job.
+    needs: [test, test-macos, test-freebsd, test-openbsd, test-netbsd,
+            test-windows]
+    if: ${{ !cancelled() && (github.event_name == 'schedule' ||
+            inputs.coverage == true) }}
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.14"
+      - name: Install coverage
+        run: pip install "$COVERAGE_PIP"
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: coverage-*
+          path: coverage-data
+          merge-multiple: true
+      - name: Combine the coverage data
+        # The data has the path of vrfdir on each runner, [paths]
+        # maps them to the one here.
+        run: |
+          rc="$RUNNER_TEMP/coveragerc"
+          cat > "$rc" << RC
+          [run]
+          data_file = $RUNNER_TEMP/.coverage
+          [paths]
+          source =
+              $GITHUB_WORKSPACE/
+              /home/runner/work/vrfdir/vrfdir/
+              /Users/runner/work/vrfdir/vrfdir/
+              D:/a/vrfdir/vrfdir/
+              C:/a/vrfdir/vrfdir/
+          RC
+          ls -l coverage-data
+          coverage combine --rcfile="$rc" --keep --debug=pathmap \
+            coverage-data/*
+          coverage report --rcfile="$rc" -m
+          coverage report --rcfile="$rc" -m --format=markdown \
+            >> "$GITHUB_STEP_SUMMARY"

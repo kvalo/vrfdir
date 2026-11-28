@@ -52,6 +52,16 @@ checksums), the tests use them to check that.
   Windows). The Windows jobs run `./check -t long-paths` again with
   the long paths of Windows disabled.
   It installs `cmdspecs` from a pinned tag, bump the tag when needed
+- Coverage on every system: the monthly run of `ci.yml`, and a run
+  started by hand with
+  `gh workflow run ci.yml --ref staging -f coverage=true`, run
+  `./coverage --data-file` instead of `./check` and `./unit` on
+  Ubuntu, macOS, the BSDs and Windows (`test-python` and `test-arm`
+  stay as they are). The `coverage` job combines their data. Its
+  report, in the log and in the summary of the job, lists the lines
+  which no system ran: a missing test, or code which cannot run
+  anywhere. It is information, no percentage fails the job.
+  `COVERAGE_PIP` pins one version of coverage for every job
 
 There is no build step. The scripts have no file extensions to glob on,
 so when you add a new Python or shell script, or a markdown file, add
@@ -337,6 +347,14 @@ like `v0.1.0`.
    so it has to pass on all of them. If the commit changes afterwards,
    e.g. by amending, CI has to pass again and the tag must point at
    the new hash.
+   Also start the coverage run of the commit with
+   `gh workflow run ci.yml --ref staging -f coverage=true`, check
+   with `gh run list --workflow ci.yml --event workflow_dispatch
+   --json headSha,databaseId` that its `headSha` is the release
+   commit, and `gh run watch` it. Both runs have to pass: the push
+   run tests without the measurement, the coverage run gives the
+   report. Tell the user the lines which no system ran; they do not
+   block the release. A changed commit needs both runs again.
 3. The user signs and tags the exact commit which was tested, e.g.
    `git tag -s vX.Y.Z <hash> -m "vrfdir vX.Y.Z"`, and pushes the
    commit and the tag to `main`. Never push to `main` or create the
