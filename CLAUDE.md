@@ -59,8 +59,11 @@ checksums), the tests use them to check that.
   Ubuntu, macOS, the BSDs and Windows (`test-python` and `test-arm`
   stay as they are). The `coverage` job combines their data. Its
   report, in the log and in the summary of the job, lists the lines
-  which no system ran: a missing test, or code which cannot run
-  anywhere. It is information, no percentage fails the job.
+  which no system ran. Every line has a test, and the job fails
+  when one is missed (`--fail-under=100`). A missed line needs a
+  test, and code which cannot run anywhere is removed. A
+  `# pragma: no cover` with a comment of why is only the last
+  resort.
   `COVERAGE_PIP` pins one version of coverage for every job
 
 There is no build step. The scripts have no file extensions to glob on,
@@ -352,9 +355,9 @@ like `v0.1.0`.
    with `gh run list --workflow ci.yml --event workflow_dispatch
    --json headSha,databaseId` that its `headSha` is the release
    commit, and `gh run watch` it. Both runs have to pass: the push
-   run tests without the measurement, the coverage run gives the
-   report. Tell the user the lines which no system ran; they do not
-   block the release. A changed commit needs both runs again.
+   run tests without the measurement, the coverage run checks that
+   every line is still tested. A missed line blocks the release
+   until it has a test. A changed commit needs both runs again.
 3. The user signs and tags the exact commit which was tested, e.g.
    `git tag -s vX.Y.Z <hash> -m "vrfdir vX.Y.Z"`, and pushes the
    commit and the tag to `main`. Never push to `main` or create the

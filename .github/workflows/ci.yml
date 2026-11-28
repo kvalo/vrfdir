@@ -367,9 +367,10 @@ jobs:
 
   coverage:
     # The report of one system misses the lines of the others, the
-    # combination lists the lines which no system ran. Also when a
-    # system failed, with the data of the others. It is information,
-    # no percentage fails the job.
+    # combination lists the lines which no system ran. Every line has
+    # a test, so the job fails when one is missed. Also when a system
+    # failed, with the data of the others, which then miss the lines
+    # of that system.
     needs: [test, test-macos, test-freebsd, test-openbsd, test-netbsd,
             test-windows]
     if: ${{ !cancelled() && (github.event_name == 'schedule' ||
@@ -406,6 +407,7 @@ jobs:
           ls -l coverage-data
           coverage combine --rcfile="$rc" --keep --debug=pathmap \
             coverage-data/*
-          coverage report --rcfile="$rc" -m
+          # the summary first, the report fails the job
           coverage report --rcfile="$rc" -m --format=markdown \
             >> "$GITHUB_STEP_SUMMARY"
+          coverage report --rcfile="$rc" -m --fail-under=100
