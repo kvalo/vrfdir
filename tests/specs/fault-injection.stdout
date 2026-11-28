@@ -86,3 +86,4 @@ add: the filesystem cannot lock, add warns and saves without the lock
 vrfdir list
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
 sha256:5a4374779c218ee174d4dd904f61579f3f54cc4e62f5fe0bfe50f665e066095c  5            d
+status: the filesystem cannot lock, status still warns of a left file

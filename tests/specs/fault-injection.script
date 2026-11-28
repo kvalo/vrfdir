@@ -180,6 +180,14 @@ echo dddd > d
 inject enolck-lock 1 0 add --quiet d
 echo vrfdir list
 "$SRCDIR/vrfdir" list
+
+# A command which only reads takes the lock for a moment to see if a
+# writer is active. A lock which fails is not a writer, so status
+# still warns of the temporary file which an interrupted vrfdir left.
+echo status: the filesystem cannot lock, status still warns of a left file
+echo '[]' > .vrfdir/manifest.json.tmp
+inject enolck-lock 1 0 status
+rm .vrfdir/manifest.json.tmp
 rm d
 
 # cleanup
