@@ -48,7 +48,8 @@ checksums), the tests use them to check that.
   FreeBSD, OpenBSD and NetBSD (VMs of `cross-platform-actions/action`,
   with GNU coreutils and sed from the packages) and on Windows
   (`windows-latest` and `windows-11-arm`, in the Git Bash of Git for
-  Windows).
+  Windows). The Windows jobs run `./check -t long-paths` again with
+  the long paths of Windows disabled.
   It installs `cmdspecs` from a pinned tag, bump the tag when needed
 
 There is no build step. The scripts have no file extensions to glob on,
@@ -124,6 +125,25 @@ of this repository. It is available from
   `.vrfdir/lock` while it runs the Python script (`$SRCDIR/vrfdir`
   or `tests/inject-at`) in a process of its own. It works on every
   system, so the test goes to `tests/specs/`.
+- A failure of the system is made with
+  `$SRCDIR/tests/inject-at KIND N SCRIPT [ARGS...]`, which makes the
+  Nth call of one kind fail (EIO when hashing, a full disk on fsync,
+  a lock which the filesystem cannot take and the others which its
+  header lists), and Ctrl-C with `$SRCDIR/tests/sigint-at N SCRIPT
+  [ARGS...]`, which raises SIGINT when the Nth file is hashed. Both
+  run the script in their own process and work on every system.
+  They are deterministic, prefer them to timing (`sleep`, `kill` from
+  another process).
+- A file which another program keeps open is made with
+  `$SRCDIR/tests/held-open FILE SCRIPT [ARGS...]`. Only Windows
+  refuses to replace such a file, so its tests are in
+  `tests/specs-windows/`.
+- A real console of Windows is made with
+  `$SRCDIR/tests/console [--ctrl-c-at N] SCRIPT [ARGS...]`, which
+  runs the script in a console of its own and prints what the
+  console shows, and with `--ctrl-c-at` sends a real Ctrl-C through
+  the console when the Nth file is hashed. Only for
+  `tests/specs-windows/`.
 - `filenames-invalid.script`, `encoding.script` and `scan.script` in
   `tests/specs-bytenames/` must stay bash, not sh: dash cannot create
   the weird filenames they need.
