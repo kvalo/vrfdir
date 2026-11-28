@@ -332,28 +332,3 @@ without it.
 Windows has no signals like this, os.kill() with SIGINT does not
 work there. Keep sys.exit(EXIT_INTERRUPTED) on win32. The help texts
 can still say 130, that is what the shell shows.
-
-## the lines which no system runs
-
-The coverage run of CI (commit e71bb30 ("ci: measure the coverage by
-hand, once a month and for a release")) runs 99% of `vrfdir`. These
-are the lines which no system runs, each one a missing test:
-
-- `upgrade_repo()`: the warning that foreign files still have the
-  MD5 checksum. `cmd_info()`: the `Foreign:` line. A name is foreign
-  only on Windows (`is_native_name()`), so add `vrfdir upgrade` and
-  `vrfdir info` of a repository whose foreign entries have `md5:`
-  checksums to `tests/specs-windows/foreign-names.script`. Only CI
-  can run it.
-- `version_string()`: the version of a release, without `+git`, and
-  `nohash` when the script cannot be read. A unit test can set
-  `VERSION` and `__file__` of the `vrfdir` fixture with monkeypatch.
-- `disk_name()`: a name in the cached listing whose `os.lstat()`
-  fails, for example a file which was removed after the listing. A
-  unit test can give it such a `listings` dict.
-- `writer_active()`: an `OSError` of the lock other than a held
-  lock. Check whether a kind of `tests/inject-at` reaches the shared
-  lock of `writer_active()`, or test it in a unit test.
-
-If a line turns out to be unreachable, remove it, so that the report
-of the coverage run lists only missing tests.
