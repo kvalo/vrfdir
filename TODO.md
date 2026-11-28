@@ -179,6 +179,99 @@ and when they are added they change later and look like
 corruption. Needs a way to ignore files, maybe a list of patterns
 in .vrfdir.
 
+## measure the coverage on every system in CI
+
+`./coverage` runs only on Linux, so nothing measures which lines the
+tests run of the code which is only for Windows or macOS
+(`sys.platform` checks, `CASE_INSENSITIVE`, `msvcrt` instead of
+`fcntl`). Today that every such line has a test is a reading of the
+code, not a number. Run it in CI:
+
+- Fix `./coverage` for the Git Bash of Windows. `PYTHONPATH` is
+  joined with `:`, Windows needs `;` (`os.pathsep`), and
+  `include = $srcdir/vrfdir` is an MSYS path (`/d/a/...`) which
+  coverage does not match with the `D:\a\...` of the Python of
+  Windows (`cygpath -m` gives one which does). Check that the
+  `sitecustomize.py` is loaded by every vrfdir which the tests start,
+  also through `tests/console`, `tests/unprivileged` and the `py`
+  launcher of `py-launcher`, which may pick another Python without
+  coverage installed.
+- macOS and the BSDs should work as they are, check it.
+- Install coverage in the jobs (`pip install coverage`, the BSDs in
+  their venv).
+- Run the tests only once per job: either `./coverage` instead of
+  `./check` and `./unit`, which then decides the result of the job
+  (it exits with the status of the tests), or both, which doubles the
+  time (the Windows jobs take 4-6 minutes for `./check`).
+- A report per system is mostly noise, each one misses the lines of
+  the other systems. The useful number is the combination: upload
+  the data of each job as an artifact (`actions/upload-artifact`)
+  and combine them in a job of its own with a `[paths]` section
+  which maps the source directories of the runners
+  (`/home/runner/work/vrfdir/vrfdir`, `D:\a\vrfdir\vrfdir`,
+  `/Users/runner/work/...` and the ones in the VMs) to one. Its
+  report lists the lines which no system ran.
+- The report is for information, no minimum percentage fails the
+  job. A line in the combined report is a missing test, or code
+  which cannot run anywhere.
+
+## test on the filesystems of a disk which is moved
+
+README.md tells that the data can be added on one system and checked
+on another, for example on a disk which is moved between Linux and
+Windows. Such a disk often has exFAT or FAT32, but CI runs the tests
+only on ext4 (Linux), UFS/FFS (the BSDs), APFS (macOS) and NTFS
+(Windows). What differs there:
+
+- The case of the names is ignored also on Linux, but
+  `CASE_INSENSITIVE` is set by the system and not by the filesystem.
+  Two problems seem to follow, not tried yet: `vrfdir add PHOTO.JPG`
+  of `photo.jpg` stores the name as it was typed, as `disk_name()` is
+  only called when `CASE_INSENSITIVE`, and status then shows `D
+  PHOTO.JPG` and `? photo.jpg`. And `is_vrfdir_path()` does not
+  casefold, so `vrfdir add .VRFDIR` would add the files of vrfdir
+  itself, whose manifest.json changes with every save. The case may
+  have to be checked per filesystem, for example by comparing the
+  `os.stat()` of `.vrfdir` and of `.VRFDIR` once at the start.
+- A name which is not valid UTF-8 cannot be created (exFAT stores
+  UTF-16), and FAT32 and exFAT refuse `\ : * ? " < > |`, like
+  Windows. Linux may give an error which differs from Windows here.
+- There are no permissions: chmod does nothing (the owner and the
+  mode come from the mount options), so a file which cannot be read
+  cannot be made, and `tests/unreadable` does not work there.
+- There are no symbolic links, hard links or named pipes.
+- The timestamps are coarse (FAT 2 s, exFAT 10 ms), which matters
+  for the item of the modification time above.
+- FAT32 cannot have a file of 4 GiB or more.
+- The flush of a directory (`fsync_directory()`) has to work or fail
+  with EINVAL, which it ignores, and the lock of `.vrfdir/lock` has
+  to work or give the warning of a filesystem which cannot lock. Any
+  other error of these would stop every command which saves.
+
+How to test it in CI:
+
+- Linux: the Ubuntu runner has sudo, so a job can make an image
+  (`truncate -s 512M`, `mkfs.exfat` of exfatprogs, `mkfs.vfat` of
+  dosfstools), mount it with `-o loop,uid=$(id -u),gid=$(id -g)` and
+  run the tests as the normal user with the data on it. cmdspecs
+  takes its data directory from Python's `tempfile`, so
+  `TMPDIR=/mnt/exfat` should be enough, check it.
+- macOS: `hdiutil create -fs ExFAT` (and `MS-DOS FAT32`) makes and
+  `hdiutil attach` mounts an image without root.
+- Windows: a VHD made with `New-VHD` or diskpart and formatted as
+  exFAT or FAT32 needs an administrator, which the runner user is.
+- Many tests cannot pass there by design (names which are bytes,
+  symbolic links, chmod), so the tests for these filesystems need a
+  selection of their own, for example a `tests/specs-fat/` directory
+  with the parts which differ and a list of the tests of
+  `tests/specs/` which must also pass there. Decide which.
+- The real use, a disk written on one system and read on another,
+  could be tested by one job which makes a repository on the image
+  and uploads it as an artifact, and a job on another system which
+  mounts it and runs status and check. An image for Windows has to be
+  a VHD (`qemu-img convert -O vpc`), `Mount-DiskImage` does not
+  mount a raw image.
+
 ## Ctrl-C: die from SIGINT instead of exit code 130
 
 After Ctrl-C vrfdir cleans up and calls sys.exit(130). For `$?`
