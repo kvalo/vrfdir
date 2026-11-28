@@ -4,8 +4,30 @@
 #
 # Run the tests and print which lines of vrfdir they did not run.
 # Arguments are the ones of ./check. Requires python3-coverage.
+#
+# --data-file FILE keeps the data of the run in FILE, for combining the
+# data of several systems. When FILE exists, the data of this run is
+# added to it.
 
 set -eu
+
+data_file=
+n=$#
+while [ "$n" -gt 0 ]; do
+    if [ "$1" = "--data-file" ]; then
+        if [ "$n" -lt 2 ]; then
+            echo "coverage: --data-file needs a file name" >&2
+            exit 64
+        fi
+        data_file=$2
+        shift 2
+        n=$((n - 2))
+    else
+        set -- "$@" "$1"
+        shift
+        n=$((n - 1))
+    fi
+done
 
 if ! python3 -c 'import coverage' 2> /dev/null; then
     echo "coverage: the Python module coverage is missing" >&2
@@ -61,7 +83,15 @@ else
     status=1
 fi
 
-python3 -m coverage combine --rcfile="$rc" > /dev/null
+append=
+if [ -n "$data_file" ] && [ -e "$data_file" ]; then
+    cp "$data_file" "$tmp/.coverage"
+    append=--append
+fi
+python3 -m coverage combine --rcfile="$rc" $append > /dev/null
 python3 -m coverage report --rcfile="$rc" -m
+if [ -n "$data_file" ]; then
+    cp "$tmp/.coverage" "$data_file"
+fi
 
 exit $status

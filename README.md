@@ -192,6 +192,7 @@ needs nothing extra, the test data is created with the
     ./check --portable       # only tests/specs, for every system
     ./unit                   # run the unit tests
     ./coverage               # run all tests, show the lines not run
+    ./coverage --data-file F # same, and keep the data in F (adds to it)
     ./lint                   # flake8, shellcheck, mdl, yamllint and reuse
     ./tests/benchmark        # simple_benchmark, see --help
 

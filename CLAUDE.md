@@ -32,8 +32,9 @@ checksums), the tests use them to check that.
   python3-pytest, works as root too as no unit test needs an
   unreadable file)
 - Coverage of `vrfdir` by both kinds of tests:
-  `./coverage [./check options]` (needs python3-coverage, prints the
-  lines which no test ran)
+  `./coverage [--data-file FILE] [./check options]` (needs
+  python3-coverage, prints the lines which no test ran).
+  `--data-file` keeps the data in FILE and adds to it when it exists
 - Benchmark:
   `./tests/benchmark [-p] [-k] [-s SIZE] [-d DIR] [TEST]` (long forms
   `--profile`, `--keep-datadir`, `--data-total-size`, `--directory`)
