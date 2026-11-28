@@ -257,42 +257,6 @@ If it is supported:
 If it is not supported, say that in README.md too, so that nobody
 relies on it working now.
 
-## measure the coverage on every system in CI
-
-`./coverage` runs only on Linux, so nothing measures which lines the
-tests run of the code which is only for Windows or macOS
-(`sys.platform` checks, `CASE_INSENSITIVE`, `msvcrt` instead of
-`fcntl`). Today that every such line has a test is a reading of the
-code, not a number. Run it in CI:
-
-- Fix `./coverage` for the Git Bash of Windows. `PYTHONPATH` is
-  joined with `:`, Windows needs `;` (`os.pathsep`), and
-  `include = $srcdir/vrfdir` is an MSYS path (`/d/a/...`) which
-  coverage does not match with the `D:\a\...` of the Python of
-  Windows (`cygpath -m` gives one which does). Check that the
-  `sitecustomize.py` is loaded by every vrfdir which the tests start,
-  also through `tests/console`, `tests/unprivileged` and the `py`
-  launcher of `py-launcher`, which may pick another Python without
-  coverage installed.
-- macOS and the BSDs should work as they are, check it.
-- Install coverage in the jobs (`pip install coverage`, the BSDs in
-  their venv).
-- Run the tests only once per job: either `./coverage` instead of
-  `./check` and `./unit`, which then decides the result of the job
-  (it exits with the status of the tests), or both, which doubles the
-  time (the Windows jobs take 4-6 minutes for `./check`).
-- A report per system is mostly noise, each one misses the lines of
-  the other systems. The useful number is the combination: upload
-  the data of each job as an artifact (`actions/upload-artifact`)
-  and combine them in a job of its own with a `[paths]` section
-  which maps the source directories of the runners
-  (`/home/runner/work/vrfdir/vrfdir`, `D:\a\vrfdir\vrfdir`,
-  `/Users/runner/work/...` and the ones in the VMs) to one. Its
-  report lists the lines which no system ran.
-- The report is for information, no minimum percentage fails the
-  job. A line in the combined report is a missing test, or code
-  which cannot run anywhere.
-
 ## test on the filesystems of a disk which is moved
 
 README.md tells that the data can be added on one system and checked
