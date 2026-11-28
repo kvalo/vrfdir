@@ -1,1 +1,2 @@
 Error: cannot refresh dir: it has no added files. Run 'vrfdir add' to add new files
+Warning: 1 file(s) cannot exist on this system and still have the MD5 checksum. Run 'vrfdir upgrade' on the system where they were added

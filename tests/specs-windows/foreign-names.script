@@ -57,5 +57,29 @@ echo a directory with only them has no added files for refresh
 "$SRCDIR/vrfdir" refresh --quiet dir
 echo "exit value: $?"
 
+# A foreign file cannot be read here, so upgrade cannot replace its
+# MD5 checksum. It upgrades the rest and tells where to upgrade it.
+echo a repository with an MD5 checksum of a foreign name
+rm -r .vrfdir
+mkdir .vrfdir
+echo aaaa > a
+cat > .vrfdir/manifest.json << 'EOF'
+[{"version": 2, "files": {
+"a": {"checksum": "md5:e5828c564f71fea3a12dde8bd5d27063", "size": 5},
+"a:b": {"checksum": "md5:e5828c564f71fea3a12dde8bd5d27063", "size": 5}
+}}]
+EOF
+
+echo vrfdir info
+"$SRCDIR/vrfdir" info
+echo "exit value: $?"
+
+echo vrfdir upgrade
+"$SRCDIR/vrfdir" upgrade --quiet
+echo "exit value: $?"
+
+echo vrfdir list
+"$SRCDIR/vrfdir" list
+
 # cleanup
 rm -fr .vrfdir a b

@@ -43,3 +43,22 @@ sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5      
 sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            x.
 a directory with only them has no added files for refresh
 exit value: 3
+a repository with an MD5 checksum of a foreign name
+vrfdir info
+Format:       version 2
+Manifest:     no checksum (run 'vrfdir upgrade')
+Files:        2
+Total size:   10 B
+Checksums:    0 sha256, 2 md5 (run 'vrfdir upgrade')
+Foreign:      1 entries
+
+Largest files:
+        5 B  a
+exit value: 0
+vrfdir upgrade
+repository converted to the latest format (version 3)
+1 file(s) upgraded to SHA-256
+exit value: 0
+vrfdir list
+sha256:11a77c3d96c06974b53d7f40a577e6813739eb5c811b2a86f59038ea90add772  5            a
+md5:e5828c564f71fea3a12dde8bd5d27063  5            a:b
