@@ -8,10 +8,11 @@
 # of icacls. MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from
 # changing /deny to a path.
 #
-# Only for a file: on the CI runner a deny entry of a directory has no
-# effect, most likely as its user is an administrator with the backup
-# privilege. The tests of a directory which cannot be read use chmod
-# and are in tests/specs-unix.
+# A deny entry of a directory has an effect only on a process without
+# the backup privilege, which the user of the CI runner has enabled.
+# The tests of a directory which cannot be read run vrfdir with
+# tests/unprivileged and are in tests/specs-windows, and the ones which
+# use chmod are in tests/specs-unix.
 #
 # usage: unreadable [--undo] FILE
 

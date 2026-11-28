@@ -1,0 +1,34 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# init in a directory where .vrfdir cannot be created, the Windows
+# version of the part of tests/specs-unix/init-existing. The directory
+# has a deny entry for creating a directory in it, and vrfdir runs
+# without the restore privilege, which would create it anyway, see
+# tests/unprivileged. The rest is in tests/specs.
+#
+# MSYS2_ARG_CONV_EXCL keeps the sh of Git for Windows from changing
+# /deny to a path, see tests/unreadable.
+
+# don't 'set -e' on purpose so that we can verify the exit value from
+# the init command
+
+cd "$DATADIR" || exit 1
+
+echo no permission to the directory
+mkdir locked
+MSYS2_ARG_CONV_EXCL='*' icacls locked /deny "$USERNAME:(AD)" > /dev/null
+(cd locked && "$SRCDIR/tests/unprivileged" "$SRCDIR/vrfdir" init)
+retval=$?
+
+if [ $retval != 3 ]; then
+    echo Wrong exit value: $retval
+fi
+
+echo nothing was created
+ls -A locked
+
+# cleanup
+MSYS2_ARG_CONV_EXCL='*' icacls locked /remove:d "$USERNAME" > /dev/null
+rm -fr locked

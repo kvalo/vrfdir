@@ -1,0 +1,51 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test that a directory which cannot be read is an error in every
+# command which goes through the directories, and that the files in
+# it are not shown as deleted. The Windows version of
+# tests/specs-unix/unreadable-directory: the directory has a deny entry
+# and vrfdir runs without the backup privilege, which would read it
+# anyway, see tests/unprivileged.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+run() {
+    echo "vrfdir $*"
+    "$SRCDIR/tests/unprivileged" "$SRCDIR/vrfdir" "$@"
+    retval=$?
+
+    if [ $retval != 3 ]; then
+        echo Wrong exit value: $retval
+    fi
+}
+
+"$SRCDIR/vrfdir" init
+mkdir -p dir/sub locked
+echo aaaa > a
+echo bbbb > dir/sub/b
+echo cccc > locked/c
+"$SRCDIR/vrfdir" add --quiet a locked
+
+# a is a difference, the error still wins
+echo aaaaaaaa > a
+"$SRCDIR/tests/unreadable" locked
+
+run status
+run check --quiet
+run scan
+
+# the files elsewhere are still added
+run add --quiet .
+echo vrfdir list
+"$SRCDIR/vrfdir" list | sort
+
+# the directory given to add itself
+run add --quiet locked
+
+# cleanup
+"$SRCDIR/tests/unreadable" --undo locked
+rm -fr .vrfdir a dir locked

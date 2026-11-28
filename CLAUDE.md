@@ -114,8 +114,11 @@ of this repository. It is available from
   `$SRCDIR/tests/unreadable FILE`, and `--undo` gives the right back
   before the cleanup. It uses chmod on a POSIX system and a deny entry
   of icacls on Windows, so the test goes to `tests/specs/`. A
-  directory which cannot be read needs chmod and `tests/specs-unix/`:
-  on the CI runner a deny entry of a directory has no effect.
+  directory which cannot be read needs chmod and `tests/specs-unix/`,
+  and a Windows version in `tests/specs-windows/`: there a deny entry
+  of a directory has an effect only when vrfdir runs with
+  `$SRCDIR/tests/unprivileged SCRIPT [ARGS...]`, without the backup
+  and restore privileges which the user of the CI runner has enabled.
 - A repository which another vrfdir is changing is made with
   `$SRCDIR/tests/locked SCRIPT [ARGS...]`, which holds the lock of
   `.vrfdir/lock` while it runs the Python script (`$SRCDIR/vrfdir`
