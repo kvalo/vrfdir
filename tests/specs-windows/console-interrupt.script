@@ -1,0 +1,42 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test Ctrl-C in a real console of Windows: the console sends it to
+# vrfdir when the Nth file is hashed. tests/specs/interrupt has the
+# rest, with a SIGINT which vrfdir raises itself.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+# run vrfdir in a console and interrupt it on the Nth file
+interrupted_at() {
+    n=$1
+    shift
+    "$SRCDIR/tests/console" --ctrl-c-at "$n" "$SRCDIR/vrfdir" "$@"
+    echo "exit value: $?"
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+echo cccc > c
+echo dddd > d
+
+echo add interrupted on the third file, the first two are saved
+interrupted_at 3 add --quiet a b c
+"$SRCDIR/vrfdir" list
+
+echo add can continue from there
+"$SRCDIR/vrfdir" add --quiet c
+
+echo add interrupted on the first file, the progress line is ended
+interrupted_at 1 add d
+"$SRCDIR/vrfdir" list
+
+echo check interrupted, the progress line is ended
+interrupted_at 1 check
+
+# cleanup
+rm -fr .vrfdir a b c d

@@ -1,0 +1,36 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test the output of vrfdir in a real console of Windows, as in a window
+# of cmd or PowerShell: the names which are not ASCII have to be shown
+# as they are. The other tests have the output in a pipe.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+in_console() {
+    "$SRCDIR/tests/console" "$SRCDIR/vrfdir" "$@"
+    echo "exit value: $?"
+}
+
+"$SRCDIR/vrfdir" init
+echo aaaa > 'ä'
+echo bbbb > '€uro'
+echo cccc > 'Ωmega'
+"$SRCDIR/vrfdir" add --quiet .
+
+echo vrfdir list
+in_console list
+
+echo vrfdir status
+echo dddd > new
+in_console status
+
+echo vrfdir check
+echo xxxx > 'ä'
+in_console check --quiet
+
+# cleanup
+rm -fr .vrfdir 'ä' '€uro' 'Ωmega' new

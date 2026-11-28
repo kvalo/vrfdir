@@ -1,0 +1,210 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run a Python script in a console of its own on Windows, as in a
+# window of cmd or PowerShell, and print what the console shows when
+# it has exited. The script writes to the console itself and not to a
+# pipe, so this tests how its output is shown there. The exit value is
+# the exit value of the script.
+#
+# With --ctrl-c-at N the console gets a real Ctrl-C when the script
+# hashes its Nth file, like tests/sigint-at but through the console and
+# not with signal.raise_signal(). This is deterministic too: the hook
+# waits for the Ctrl-C.
+#
+# Only for Windows, the other systems have no console like this.
+#
+# usage: console [--ctrl-c-at N] SCRIPT [ARGS...]
+
+import ctypes
+import hashlib
+import msvcrt
+import os
+import runpy
+import subprocess
+import sys
+import tempfile
+import time
+from ctypes import wintypes
+
+EXIT_USAGE = 64
+EXIT_HOOK_NOT_REACHED = 70
+EXIT_NO_CONSOLE = 71
+
+CTRL_C_EVENT = 0
+
+# so wide that no line of the tests wraps, and the console shows the
+# lines exactly as they were written
+SCREEN_WIDTH = 250
+SCREEN_HEIGHT = 500
+
+# how long to wait for the hook and then for the Ctrl-C, in seconds
+TIMEOUT = 30
+
+kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+
+
+class COORD(ctypes.Structure):
+    _fields_ = [('X', wintypes.SHORT), ('Y', wintypes.SHORT)]
+
+
+class SMALL_RECT(ctypes.Structure):
+    _fields_ = [('Left', wintypes.SHORT), ('Top', wintypes.SHORT),
+                ('Right', wintypes.SHORT), ('Bottom', wintypes.SHORT)]
+
+
+class CONSOLE_SCREEN_BUFFER_INFO(ctypes.Structure):
+    _fields_ = [('dwSize', COORD), ('dwCursorPosition', COORD),
+                ('wAttributes', wintypes.WORD), ('srWindow', SMALL_RECT),
+                ('dwMaximumWindowSize', COORD)]
+
+
+kernel32.SetConsoleScreenBufferSize.argtypes = [wintypes.HANDLE, COORD]
+kernel32.GetConsoleScreenBufferInfo.argtypes = [
+    wintypes.HANDLE, ctypes.POINTER(CONSOLE_SCREEN_BUFFER_INFO)]
+kernel32.ReadConsoleOutputCharacterW.argtypes = [
+    wintypes.HANDLE, wintypes.LPWSTR, wintypes.DWORD, COORD,
+    ctypes.POINTER(wintypes.DWORD)]
+kernel32.SetConsoleCtrlHandler.argtypes = [ctypes.c_void_p, wintypes.BOOL]
+kernel32.GenerateConsoleCtrlEvent.argtypes = [wintypes.DWORD,
+                                              wintypes.DWORD]
+
+
+def fail(message, exit_value):
+    print('console: %s' % message, file=sys.stderr)
+    sys.exit(exit_value)
+
+
+def check(ok, what):
+    if not ok:
+        fail('%s failed: %s' % (what, ctypes.FormatError(
+            ctypes.get_last_error())), EXIT_NO_CONSOLE)
+
+
+# the text of the console, without the spaces after the end of the
+# lines and the empty lines in the end
+def read_screen(handle):
+    info = CONSOLE_SCREEN_BUFFER_INFO()
+    check(kernel32.GetConsoleScreenBufferInfo(handle, ctypes.byref(info)),
+          'GetConsoleScreenBufferInfo')
+    width = info.dwSize.X
+    lines = []
+
+    for y in range(info.dwCursorPosition.Y + 1):
+        buf = ctypes.create_unicode_buffer(width)
+        read = wintypes.DWORD()
+        check(kernel32.ReadConsoleOutputCharacterW(handle, buf, width,
+                                                   COORD(0, y),
+                                                   ctypes.byref(read)),
+              'ReadConsoleOutputCharacterW')
+        lines.append(buf[:read.value].rstrip(' '))
+
+    while lines and lines[-1] == '':
+        lines.pop()
+
+    return lines
+
+
+# Runs in the console: the script with the hook which waits for the
+# Ctrl-C, see tests/sigint-at.
+def child(n, marker, argv):
+    file_digest = hashlib.file_digest
+    count = 0
+
+    def hooked_file_digest(*args, **kwargs):
+        nonlocal count
+        count += 1
+        if count == n:
+            open(marker, 'w').close()
+            # the Ctrl-C raises KeyboardInterrupt in the sleep
+            time.sleep(TIMEOUT)
+            print('console: no Ctrl-C came', file=sys.stderr)
+            os._exit(EXIT_HOOK_NOT_REACHED)
+        return file_digest(*args, **kwargs)
+
+    hashlib.file_digest = hooked_file_digest
+    sys.argv = argv
+
+    try:
+        runpy.run_path(argv[0], run_name='__main__')
+    finally:
+        if count < n:
+            print('console: %s hashed only %d file(s), not %d' %
+                  (os.path.basename(argv[0]), count, n), file=sys.stderr)
+            os._exit(EXIT_HOOK_NOT_REACHED)
+
+
+def main():
+    args = sys.argv[1:]
+
+    if args[:1] == ['--child']:
+        child(int(args[1]), args[2], args[3:])
+        return
+
+    ctrl_c_at = None
+    if args[:1] == ['--ctrl-c-at'] and len(args) >= 2:
+        ctrl_c_at = int(args[1])
+        args = args[2:]
+
+    if not args:
+        print('usage: console [--ctrl-c-at N] SCRIPT [ARGS...]',
+              file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+
+    # stdout stays what it was, only the script writes to the console
+    out = os.fdopen(os.dup(sys.stdout.fileno()), 'w', encoding='utf-8',
+                    newline='\n')
+
+    # a console of our own, which the script shares
+    kernel32.FreeConsole()
+    check(kernel32.AllocConsole(), 'AllocConsole')
+
+    conout = open('CONOUT$', 'w')
+    conin = open('CONIN$', 'r')
+    handle = msvcrt.get_osfhandle(conout.fileno())
+    check(kernel32.SetConsoleScreenBufferSize(
+        handle, COORD(SCREEN_WIDTH, SCREEN_HEIGHT)),
+        'SetConsoleScreenBufferSize')
+
+    # The script inherits whether Ctrl-C is ignored, so it is not
+    # ignored when the script starts.
+    check(kernel32.SetConsoleCtrlHandler(None, False),
+          'SetConsoleCtrlHandler')
+
+    with tempfile.TemporaryDirectory() as tmpdir:
+        marker = os.path.join(tmpdir, 'hooked')
+        if ctrl_c_at is None:
+            command = [sys.executable] + args
+        else:
+            command = [sys.executable, os.path.abspath(__file__), '--child',
+                       str(ctrl_c_at), marker] + args
+
+        proc = subprocess.Popen(command, stdin=conin, stdout=conout,
+                                stderr=conout)
+
+        if ctrl_c_at is not None:
+            deadline = time.monotonic() + TIMEOUT
+            while not os.path.exists(marker):
+                if proc.poll() is not None or time.monotonic() > deadline:
+                    break
+                time.sleep(0.05)
+            else:
+                # the Ctrl-C goes to every process in the console, but
+                # only the script is interrupted
+                check(kernel32.SetConsoleCtrlHandler(None, True),
+                      'SetConsoleCtrlHandler')
+                check(kernel32.GenerateConsoleCtrlEvent(CTRL_C_EVENT, 0),
+                      'GenerateConsoleCtrlEvent')
+
+        returncode = proc.wait()
+
+    for line in read_screen(handle):
+        out.write(line + '\n')
+    out.flush()
+
+    sys.exit(returncode)
+
+
+if __name__ == "__main__":
+    main()
