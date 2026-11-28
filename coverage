@@ -68,6 +68,9 @@ cat > "$tmp/rc" << RC
 parallel = True
 data_file = $(native "$tmp/.coverage")
 include = $(native "$srcdir/vrfdir")
+# Where coverage has no compiled tracer, as on FreeBSD, every process
+# would warn about it on stderr, which the tests compare.
+disable_warnings = no-ctracer
 RC
 
 status=0
