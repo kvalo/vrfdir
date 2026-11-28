@@ -12,9 +12,25 @@ if ! python3 -c 'import coverage' 2> /dev/null; then
     exit 1
 fi
 
+# In the Git Bash of Windows the paths are MSYS paths (/d/a/...), but
+# Python is a Windows program and coverage compares the paths which it
+# gets with D:/a/... of Python. A list of paths in PYTHONPATH is
+# separated with ; there.
+case "$(uname -s)" in
+    MINGW* | MSYS*)
+        native() { cygpath -m "$1"; }
+        sep=';'
+        ;;
+    *)
+        native() { printf '%s\n' "$1"; }
+        sep=':'
+        ;;
+esac
+
 srcdir=$(cd "$(dirname "$0")" && pwd)
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
+rc=$(native "$tmp/rc")
 
 # The tests run vrfdir as a new process many times, also through
 # tests/sigint-at and tests/inject-at. Every Python process starts
@@ -28,24 +44,24 @@ PY
 cat > "$tmp/rc" << RC
 [run]
 parallel = True
-data_file = $tmp/.coverage
-include = $srcdir/vrfdir
+data_file = $(native "$tmp/.coverage")
+include = $(native "$srcdir/vrfdir")
 RC
 
 status=0
-PYTHONPATH="$tmp/site${PYTHONPATH:+:$PYTHONPATH}" \
-    COVERAGE_PROCESS_START="$tmp/rc" "$srcdir/check" "$@" || status=$?
+PYTHONPATH="$(native "$tmp/site")${PYTHONPATH:+$sep$PYTHONPATH}" \
+    COVERAGE_PROCESS_START="$rc" "$srcdir/check" "$@" || status=$?
 
 # the unit tests run vrfdir in their own process, not as a command
 if python3 -c 'import pytest' 2> /dev/null; then
-    python3 -B -m coverage run --rcfile="$tmp/rc" -m pytest \
-        -p no:cacheprovider "$srcdir/tests/unit" || status=$?
+    python3 -B -m coverage run --rcfile="$rc" -m pytest \
+        -p no:cacheprovider "$(native "$srcdir/tests/unit")" || status=$?
 else
     echo "coverage: pytest is missing, the unit tests were not run" >&2
     status=1
 fi
 
-python3 -m coverage combine --rcfile="$tmp/rc" > /dev/null
-python3 -m coverage report --rcfile="$tmp/rc" -m
+python3 -m coverage combine --rcfile="$rc" > /dev/null
+python3 -m coverage report --rcfile="$rc" -m
 
 exit $status
