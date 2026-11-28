@@ -255,6 +255,13 @@ def test_disk_name_uses_the_cache(vrfdir, tree):
     assert vrfdir.disk_name('dir', listings) == 'dir'
 
 
+def test_disk_name_skips_a_removed_name(vrfdir, tree):
+    # 'gone' was in the directory when the cache was made
+    listings = {'.': {'gone', 'dir'}}
+
+    assert vrfdir.disk_name('top', listings) == 'top'
+
+
 @pytest.mark.skipif(sys.platform not in ('win32', 'darwin'),
                     reason='case-insensitive filesystems')
 def test_disk_name_other_case(vrfdir, tree):
