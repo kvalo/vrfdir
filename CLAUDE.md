@@ -77,12 +77,13 @@ of this repository. It is available from
   argument like `/dev/null` (the sh of Git for Windows converts an
   absolute POSIX path for a Windows program), or an error text which
   differs on Windows ("Not a directory", "Is a directory").
-- A test which cannot work on macOS goes to `tests/specs-linux/`. That
-  is a test which needs a file name which is not valid UTF-8 (APFS
-  refuses it), names which differ only in the case or the
-  normalisation form, `/dev/full` or an error text of Linux.
-  `./check` runs it only on Linux, so the BSDs run just
-  `tests/specs/` and `tests/specs-unix/`.
+- `tests/specs-bytenames/` is for a test which needs a filesystem
+  where a name is any sequence of bytes: a file name which is not
+  valid UTF-8 (APFS refuses it), or names which differ only in the
+  case or the normalisation form. `./check` runs it on Linux and the
+  BSDs.
+- A test which needs Linux goes to `tests/specs-linux/`: `/dev/full`
+  or an error text of Linux. `./check` runs it only on Linux.
 - `tests/specs-macos/` has the tests of the macOS behaviour
   (normalisation form of names), run only on macOS (`uname -s` is
   Darwin). `tests/specs-caseless/` has the tests of a filesystem which
@@ -96,7 +97,8 @@ of this repository. It is available from
   split: those stay in `tests/specs/`, and the rest has the same name
   in one `tests/specs-*/` directory, so that `-t <name>` runs both.
   The rest stays together in the directory which its parts need, for
-  example `tests/specs-linux/` when one of them needs Linux, and is
+  example `tests/specs-linux/` when one of them needs Linux (also
+  when the others only need `tests/specs-bytenames/`), and is
   not split again. The Windows version of a part in
   `tests/specs-unix/`, when there is one, has the same name in
   `tests/specs-windows/`.
@@ -120,8 +122,8 @@ of this repository. It is available from
   or `tests/inject-at`) in a process of its own. It works on every
   system, so the test goes to `tests/specs/`.
 - `filenames-invalid.script`, `encoding.script` and `scan.script` in
-  `tests/specs-linux/` must stay bash, not sh: dash cannot create the
-  weird filenames they need.
+  `tests/specs-bytenames/` must stay bash, not sh: dash cannot create
+  the weird filenames they need.
 - The expected files are UTF-8. Output with file names which are not
   valid UTF-8 is piped through `cat -v` in the scripts.
 - `tests/genbackupdata` is the local test data generator. Its output

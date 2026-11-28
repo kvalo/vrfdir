@@ -14,10 +14,12 @@ fi
 # tests/specs runs on every system, also on Windows with the sh of Git
 # for Windows. tests/specs-unix needs a POSIX system (chmod, symbolic
 # links, named pipes, the error texts), so it runs everywhere except on
-# Windows. tests/specs-linux needs /dev/full, the error texts of Linux
-# and names which are not valid UTF-8, and tests/specs-macos the
-# behaviour of macOS, and tests/specs-windows the behaviour of Windows,
-# so each runs only on its system.
+# Windows. tests/specs-bytenames needs a filesystem where a name is any
+# sequence of bytes (names which are not valid UTF-8, or differ only in
+# the case or the normalisation form), so it runs on Linux and the
+# BSDs. tests/specs-linux needs /dev/full and the error texts of Linux,
+# tests/specs-macos the behaviour of macOS and tests/specs-windows the
+# behaviour of Windows, so each runs only on its system.
 # tests/specs-caseless needs a filesystem which ignores the case of the
 # names, as macOS and Windows have by default. --portable runs only
 # tests/specs.
@@ -37,14 +39,16 @@ done
 set -- "$@" tests/specs
 if [ -z "$portable" ]; then
     case "$(uname -s)" in
-        Linux) set -- "$@" tests/specs-unix tests/specs-linux ;;
+        Linux)
+            set -- "$@" tests/specs-unix tests/specs-bytenames tests/specs-linux
+            ;;
         Darwin)
             set -- "$@" tests/specs-unix tests/specs-macos tests/specs-caseless
             ;;
         MINGW* | MSYS*)
             set -- "$@" tests/specs-windows tests/specs-caseless
             ;;
-        *) set -- "$@" tests/specs-unix ;;
+        *) set -- "$@" tests/specs-unix tests/specs-bytenames ;;
     esac
 fi
 

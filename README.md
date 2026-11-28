@@ -195,10 +195,10 @@ needs nothing extra, the test data is created with the
 The tests are black-box: each `tests/specs/<name>.script` is run and
 its output and exit code are compared with the expected files next to
 it. The tests in `tests/specs/` run on every system, the ones in
-`tests/specs-unix/`, `tests/specs-linux/`, `tests/specs-macos/`,
-`tests/specs-caseless/` and `tests/specs-windows/` only on the
-systems `./check` picks for them. See `./tests/benchmark --help` for
-the options of the benchmark.
+`tests/specs-unix/`, `tests/specs-bytenames/`, `tests/specs-linux/`,
+`tests/specs-macos/`, `tests/specs-caseless/` and
+`tests/specs-windows/` only on the systems `./check` picks for them.
+See `./tests/benchmark --help` for the options of the benchmark.
 
 Known problems and plans are in [TODO.md](TODO.md).
 

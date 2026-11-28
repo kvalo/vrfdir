@@ -5,7 +5,7 @@
 # test that on a case-insensitive filesystem a name typed in another
 # case is the name on the disk and the file has only one name in the
 # repository, and that .VRFDIR is the directory of vrfdir. The names
-# a and A are the same file here, see tests/specs-linux/case-names.
+# a and A are the same file here, see tests/specs-bytenames/case-names.
 #
 # don't 'set -e' on purpose so that we can verify the exit values
 

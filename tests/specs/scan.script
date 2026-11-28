@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-or-later
 #
 # test scan command with names which are valid. The names which are not
-# valid UTF-8 are in tests/specs-linux.
+# valid UTF-8 are in tests/specs-bytenames.
 
 set -e
 

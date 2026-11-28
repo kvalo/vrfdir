@@ -4,7 +4,7 @@
 #
 # test that names which differ only in the case or in the Unicode
 # normalisation form are different files. Other systems may treat them
-# as the same file, see CASE_INSENSITIVE, but not Linux.
+# as the same file, see CASE_INSENSITIVE, but not Linux and the BSDs.
 #
 # Note: this script must use bash, not dash, to be able to correctly
 # create weird filenames!

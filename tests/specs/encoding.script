@@ -4,7 +4,7 @@
 #
 # test that the repository and the output do not depend on the
 # encoding of the locale. A name which is not valid UTF-8 is in
-# tests/specs-linux.
+# tests/specs-bytenames.
 #
 # The tests are run in a UTF-8 locale. The other environment used here
 # is the C locale with ASCII as the encoding, which exists everywhere.

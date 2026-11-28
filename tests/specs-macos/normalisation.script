@@ -4,7 +4,7 @@
 #
 # test that on macOS a name typed in the other Unicode normalisation
 # form is the same file, and that the file has only one name in the
-# repository, the one on the disk. See tests/specs-linux/case-names
+# repository, the one on the disk. See tests/specs-bytenames/case-names
 # for Linux, where they are different files.
 #
 # Note: this script must use bash, not dash, to be able to correctly

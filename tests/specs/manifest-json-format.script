@@ -5,7 +5,7 @@
 # test the exact content of manifest.json which vrfdir writes. A change
 # in it has to be on purpose, a new vrfdir has to read the old files
 # and the old vrfdir the new ones, see the format version. The names
-# which cannot be files on every system are in tests/specs-linux.
+# which cannot be files on every system are in tests/specs-bytenames.
 #
 # don't 'set -e' on purpose so that we can verify the exit values
 

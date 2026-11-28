@@ -5,7 +5,7 @@
 # test the order of the lines of status. It is the order of the bytes
 # of the names, so that it does not depend on the locale or on the
 # directory order of the filesystem. A name which is not valid UTF-8 is
-# in tests/specs-linux.
+# in tests/specs-bytenames.
 #
 # don't 'set -e' on purpose so that we can verify the exit value
 
