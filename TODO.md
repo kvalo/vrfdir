@@ -46,6 +46,18 @@ again.
 - scan reports only the files with an invalid name. A directory
   with an invalid name is not reported if it has no files.
 
+- write() saves the backup before manifest.json. When manifest.json
+  cannot be replaced, for example on Windows while another program
+  has it open, the backup is already a copy of the current
+  manifest.json and the version one save older is lost. The
+  repository itself is fine. tests/specs-windows/manifest-open
+  checks what happens now.
+
+- When the backup manifest.json.bak cannot be replaced, the error
+  says "cannot save the repository .vrfdir/manifest.json" and does
+  not name the backup, which was the file that failed.
+  tests/specs-windows/manifest-open checks what happens now.
+
 ## add_file(): stat and hash the same open file
 
 add_file() calls os.stat() and then hashes the file. A file which
