@@ -212,6 +212,51 @@ then used instead of `CASE_INSENSITIVE` (also for the output of
 Linux, see the item of the filesystems of a moved disk below: the
 tests of `tests/specs-caseless/` should then pass there too.
 
+## status and check on a read-only filesystem
+
+Decide whether vrfdir supports status and check (and the other
+commands which only read: list, export, info, scan) on a read-only
+filesystem, and document the decision in the help texts and
+README.md either way. It is a real use: a backup disk mounted
+read-only, a snapshot of btrfs or ZFS (read-only by design), an
+image or an optical disc of an archive.
+
+Today it most likely works, but by accident and without a test or a
+promise:
+
+- The commands which only read do not take the lock.
+  `writer_active()` opens `.vrfdir/lock` with `O_RDONLY` and takes
+  any error as no writer, and only the commands which change the
+  repository create the file.
+- An old format of manifest.json (or hashes.json) is converted only
+  in memory, the next write converts the file.
+- The temporary files of an interrupted save are only warned about,
+  not removed.
+
+If it is supported:
+
+- Say it in the help texts of those commands and in README.md, and
+  that add, refresh, upgrade and init need a writable filesystem.
+- Check that add, refresh and upgrade fail on it with a clear message
+  and `EXIT_ERROR`, not a stacktrace: the lock is the first write,
+  `os.open()` with `O_CREAT` of `.vrfdir/lock` gives EROFS.
+- Test it. A read-only filesystem needs root to mount on Linux (a
+  loop mount, or `mount --bind -o ro` in a CI step with sudo, like
+  the item of the filesystems of a moved disk below). macOS can make
+  and attach a read-only image without root (`hdiutil attach
+  -readonly`). A directory without the write permission (chmod 555
+  of the repository and of `.vrfdir`, in `tests/specs-unix/`) is
+  close and needs no root, but it gives EACCES, not EROFS, so it does
+  not test the same messages.
+- Keep it working: a new write in a command which only reads, for
+  example a cache or `last_checked` of the item of `--time-limit`
+  above, would break it. `tests/unit/test_data_untouched.py` lists the
+  writes of every function and could check that the commands which
+  only read have none.
+
+If it is not supported, say that in README.md too, so that nobody
+relies on it working now.
+
 ## measure the coverage on every system in CI
 
 `./coverage` runs only on Linux, so nothing measures which lines the
