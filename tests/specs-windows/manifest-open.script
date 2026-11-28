@@ -1,0 +1,73 @@
+#!/bin/sh
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# test a manifest.json which another program keeps open. Windows cannot
+# replace a file which is open, vrfdir tries again for a while and then
+# has to report it with the old manifest.json kept as it was. The
+# backup is saved first, so when only manifest.json is open the backup
+# is already its copy. A file which is open only for a moment is in the
+# unit tests.
+
+# don't 'set -e' on purpose so that we can verify the exit values
+
+cd "$DATADIR" || exit 1
+
+held_open() {
+    "$SRCDIR/tests/held-open" "$@"
+    echo "exit value: $?"
+}
+
+# the copies are outside of the repository
+mkdir repo
+cd repo || exit 1
+"$SRCDIR/vrfdir" init
+echo aaaa > a
+echo bbbb > b
+"$SRCDIR/vrfdir" add --quiet a
+echo cccc > c
+"$SRCDIR/vrfdir" add --quiet c
+
+# copy the files of .vrfdir, to compare with them later
+save() {
+    cp .vrfdir/manifest.json .vrfdir/manifest.json.bak ..
+}
+
+# compare the files of .vrfdir with the copies, and list what is left
+compare() {
+    if cmp -s .vrfdir/manifest.json ../manifest.json; then
+        echo "manifest.json unchanged"
+    else
+        echo "manifest.json changed"
+    fi
+    if cmp -s .vrfdir/manifest.json.bak ../manifest.json.bak; then
+        echo "manifest.json.bak unchanged"
+    elif cmp -s .vrfdir/manifest.json.bak ../manifest.json; then
+        echo "manifest.json.bak is a copy of manifest.json"
+    else
+        echo "manifest.json.bak changed"
+    fi
+    ls .vrfdir
+}
+
+echo status reads a manifest.json which is open
+held_open .vrfdir/manifest.json "$SRCDIR/vrfdir" status
+
+echo add cannot replace a manifest.json which is open
+save
+held_open .vrfdir/manifest.json "$SRCDIR/vrfdir" add --quiet b
+compare
+
+echo add cannot replace a backup which is open
+save
+held_open .vrfdir/manifest.json.bak "$SRCDIR/vrfdir" add --quiet b
+compare
+
+echo add works once the files are closed
+"$SRCDIR/vrfdir" add --quiet b
+echo "exit value: $?"
+"$SRCDIR/vrfdir" list
+
+# cleanup
+cd .. || exit 1
+rm -fr repo manifest.json manifest.json.bak

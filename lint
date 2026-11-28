@@ -8,7 +8,7 @@
 set -eu
 
 flake8 vrfdir tests/genbackupdata tests/benchmark tests/sigint-at tests/inject-at \
-    tests/locked \
+    tests/locked tests/held-open \
     tests/unit/*.py
 
 shellcheck check coverage lint unit tests/unreadable tests/specs/*.script \

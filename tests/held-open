@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+# SPDX-FileCopyrightText: 2026 Kalle Valo
+# SPDX-License-Identifier: GPL-3.0-or-later
+#
+# Run a Python script while FILE is open for reading in another
+# process, as a virus scanner, an indexer or an editor can have it. On
+# Windows a file which is open without FILE_SHARE_DELETE, as open() of
+# Python opens it, cannot be replaced or removed. The script runs in a
+# process of its own and the exit value is its exit value. The file is
+# closed when this exits.
+#
+# A script and not any command, as Windows cannot start a script by
+# its #! line. Like tests/locked.
+#
+# usage: held-open FILE SCRIPT [ARGS...]
+
+import subprocess
+import sys
+
+EXIT_USAGE = 64
+
+
+def main():
+    if len(sys.argv) < 3:
+        print('usage: held-open FILE SCRIPT [ARGS...]', file=sys.stderr)
+        sys.exit(EXIT_USAGE)
+
+    with open(sys.argv[1], 'rb'):
+        # what the script prints comes after what this has printed
+        sys.stdout.flush()
+        result = subprocess.run([sys.executable] + sys.argv[2:])
+
+    sys.exit(result.returncode)
+
+
+if __name__ == "__main__":
+    main()
